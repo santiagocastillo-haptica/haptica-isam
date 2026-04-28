@@ -113,6 +113,27 @@
     }
     .form-divider { height: 1px; background: var(--border); margin: 26px 0; }
 
+    /* ── ROLE ROWS (select + horas) ──────────────────────────────── */
+    .role-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+    .role-row { display: flex; align-items: center; gap: 12px; }
+    .role-row-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.7px; color: var(--muted);
+      width: 130px; flex-shrink: 0;
+    }
+    .role-row select { flex: 1; }
+    .role-row .horas-input {
+      width: 80px; flex-shrink: 0;
+      text-align: right;
+    }
+    .horas-input-wrap { position: relative; width: 80px; flex-shrink: 0; }
+    .horas-input-wrap input { width: 100%; padding-right: 22px; text-align: right; }
+    .horas-input-wrap::after {
+      content: 'h'; position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%); font-size: 12px; color: var(--muted);
+      pointer-events: none;
+    }
+
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 22px; }
     .form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
@@ -386,21 +407,150 @@
         </div>
 
         <div class="form-divider"></div>
-        <div class="sec-label">Equipo Asignado</div>
-        <div class="form-grid">
-          <div class="form-group"><label>Host Asignado</label><input type="text" id="f-host" placeholder="Nombre" /></div>
-          <div class="form-group"><label>Owner Asignado</label><input type="text" id="f-owner" placeholder="Nombre" /></div>
-          <div class="form-group"><label>Doer Asignado 1</label><input type="text" id="f-doer1" placeholder="Nombre" /></div>
-          <div class="form-group"><label>Doer Asignado 2</label><input type="text" id="f-doer2" placeholder="Nombre (opcional)" /></div>
-          <div class="form-group"><label>Otros Asignados</label><input type="text" id="f-otros1" placeholder="Nombre (opcional)" /></div>
-          <div class="form-group"><label>Otros Asignados</label><input type="text" id="f-otros2" placeholder="Nombre (opcional)" /></div>
+        <div class="sec-label">Equipo Asignado <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sec);font-size:10px;">— horas por rol</span></div>
+        <div class="role-rows">
+          <div class="role-row">
+            <span class="role-row-label">Host Asignado</span>
+            <select id="f-host">
+              <option value="">Sin asignar</option>
+              <option>Angélica Flechas</option>
+              <option>María Camila Venegas</option>
+              <option>María Alejandra Corrales</option>
+              <option>Daniel Pinilla</option>
+              <option>Camilo Niño</option>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-host-h" placeholder="0" min="0" /></div>
+          </div>
+          <div class="role-row">
+            <span class="role-row-label">Owner Asignado</span>
+            <select id="f-owner">
+              <option value="">Sin asignar</option>
+              <option>Azul Cardona</option>
+              <option>María Laura Patiño</option>
+              <option>Daniela Caicedo</option>
+              <option>Laura Gómez</option>
+              <option>Stiben Ibarra</option>
+              <option>Natalia Rodríguez</option>
+              <option>María Alejandra Mariño</option>
+              <option>María Fernanda Martínez</option>
+              <option>Ana Roa</option>
+              <option>Julián Gaitán</option>
+              <option>Santiago Castillo</option>
+              <option>Jhojann Rodríguez</option>
+              <option>Kevin Barbosa</option>
+              <option>María Camila Rueda</option>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-owner-h" placeholder="0" min="0" /></div>
+          </div>
+          <div class="role-row">
+            <span class="role-row-label">Doer Asignado 1</span>
+            <select id="f-doer1">
+              <option value="">Sin asignar</option>
+              <option>Azul Cardona</option>
+              <option>María Laura Patiño</option>
+              <option>Daniela Caicedo</option>
+              <option>Laura Gómez</option>
+              <option>Stiben Ibarra</option>
+              <option>Natalia Rodríguez</option>
+              <option>María Alejandra Mariño</option>
+              <option>María Fernanda Martínez</option>
+              <option>Ana Roa</option>
+              <option>Julián Gaitán</option>
+              <option>Santiago Castillo</option>
+              <option>Jhojann Rodríguez</option>
+              <option>Kevin Barbosa</option>
+              <option>María Camila Rueda</option>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-doer1-h" placeholder="0" min="0" /></div>
+          </div>
+          <div class="role-row">
+            <span class="role-row-label">Doer Asignado 2</span>
+            <select id="f-doer2">
+              <option value="">Sin asignar</option>
+              <option>Azul Cardona</option>
+              <option>María Laura Patiño</option>
+              <option>Daniela Caicedo</option>
+              <option>Laura Gómez</option>
+              <option>Stiben Ibarra</option>
+              <option>Natalia Rodríguez</option>
+              <option>María Alejandra Mariño</option>
+              <option>María Fernanda Martínez</option>
+              <option>Ana Roa</option>
+              <option>Julián Gaitán</option>
+              <option>Santiago Castillo</option>
+              <option>Jhojann Rodríguez</option>
+              <option>Kevin Barbosa</option>
+              <option>María Camila Rueda</option>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-doer2-h" placeholder="0" min="0" /></div>
+          </div>
+          <div class="role-row">
+            <span class="role-row-label">Otros Asignados</span>
+            <select id="f-otros1">
+              <option value="">Sin asignar</option>
+              <optgroup label="Hosts">
+                <option>Angélica Flechas</option>
+                <option>María Camila Venegas</option>
+                <option>María Alejandra Corrales</option>
+                <option>Daniel Pinilla</option>
+                <option>Camilo Niño</option>
+              </optgroup>
+              <optgroup label="Owners / Doers">
+                <option>Azul Cardona</option>
+                <option>María Laura Patiño</option>
+                <option>Daniela Caicedo</option>
+                <option>Laura Gómez</option>
+                <option>Stiben Ibarra</option>
+                <option>Natalia Rodríguez</option>
+                <option>María Alejandra Mariño</option>
+                <option>María Fernanda Martínez</option>
+                <option>Ana Roa</option>
+                <option>Julián Gaitán</option>
+                <option>Santiago Castillo</option>
+                <option>Jhojann Rodríguez</option>
+                <option>Kevin Barbosa</option>
+                <option>María Camila Rueda</option>
+              </optgroup>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-otros1-h" placeholder="0" min="0" /></div>
+          </div>
+          <div class="role-row">
+            <span class="role-row-label">Otros Asignados</span>
+            <select id="f-otros2">
+              <option value="">Sin asignar</option>
+              <optgroup label="Hosts">
+                <option>Angélica Flechas</option>
+                <option>María Camila Venegas</option>
+                <option>María Alejandra Corrales</option>
+                <option>Daniel Pinilla</option>
+                <option>Camilo Niño</option>
+              </optgroup>
+              <optgroup label="Owners / Doers">
+                <option>Azul Cardona</option>
+                <option>María Laura Patiño</option>
+                <option>Daniela Caicedo</option>
+                <option>Laura Gómez</option>
+                <option>Stiben Ibarra</option>
+                <option>Natalia Rodríguez</option>
+                <option>María Alejandra Mariño</option>
+                <option>María Fernanda Martínez</option>
+                <option>Ana Roa</option>
+                <option>Julián Gaitán</option>
+                <option>Santiago Castillo</option>
+                <option>Jhojann Rodríguez</option>
+                <option>Kevin Barbosa</option>
+                <option>María Camila Rueda</option>
+              </optgroup>
+            </select>
+            <div class="horas-input-wrap"><input type="number" id="f-otros2-h" placeholder="0" min="0" /></div>
+          </div>
         </div>
 
         <div class="form-divider"></div>
-        <div class="sec-label">Presupuesto y Fechas</div>
+        <div class="sec-label">Fechas y Semanas</div>
         <div class="form-grid">
-          <div class="form-group"><label>Horas Presupuestadas (vendidas)</label><input type="number" id="f-horas" placeholder="0" min="0" /></div>
           <div class="form-group"><label>Semanas Presupuestadas</label><input type="number" id="f-semanas" placeholder="0" min="0" /></div>
+          <div class="form-group"></div>
           <div class="form-group"><label>Fecha de Inicio</label><input type="date" id="f-inicio" /></div>
           <div class="form-group"><label>Fecha Cierre Propuesta</label><input type="date" id="f-cierre" /></div>
         </div>
@@ -699,9 +849,18 @@ function buildCard(p) {
 
   var barClass = ejec <= pres ? 'under' : 'over';
 
-  var equipo = [['Host',p.host],['Owner',p.owner],['Doer 1',p.doer1],['Doer 2',p.doer2],['Otros',p.otros1],['Otros',p.otros2]]
-    .filter(function(x){ return x[1]; })
-    .map(function(x){ return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+'</span></div>'; }).join('');
+  var equipo = [
+    ['Host',   p.host,   p.hostHoras],
+    ['Owner',  p.owner,  p.ownerHoras],
+    ['Doer 1', p.doer1,  p.doer1Horas],
+    ['Doer 2', p.doer2,  p.doer2Horas],
+    ['Otros',  p.otros1, p.otros1Horas],
+    ['Otros',  p.otros2, p.otros2Horas]
+  ].filter(function(x){ return x[1]; })
+   .map(function(x){
+     var hLabel = x[2] ? '<span style="font-size:11px;color:var(--muted);margin-left:6px;">'+x[2]+'h</span>' : '';
+     return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hLabel+'</span></div>';
+   }).join('');
 
   var div = document.createElement('div');
   div.className = 'proj-card';
@@ -831,15 +990,22 @@ function guardarProyecto() {
     toast('Ya existe un proyecto con ese nombre', 'error'); return;
   }
 
+  var hHost   = parseFloat(document.getElementById('f-host-h').value)   || 0;
+  var hOwner  = parseFloat(document.getElementById('f-owner-h').value)  || 0;
+  var hDoer1  = parseFloat(document.getElementById('f-doer1-h').value)  || 0;
+  var hDoer2  = parseFloat(document.getElementById('f-doer2-h').value)  || 0;
+  var hOtros1 = parseFloat(document.getElementById('f-otros1-h').value) || 0;
+  var hOtros2 = parseFloat(document.getElementById('f-otros2-h').value) || 0;
+
   var data = {
     nombre:               nombre,
-    host:                 v('f-host'),
-    owner:                v('f-owner'),
-    doer1:                v('f-doer1'),
-    doer2:                v('f-doer2'),
-    otros1:               v('f-otros1'),
-    otros2:               v('f-otros2'),
-    horasPresupuestadas:  parseFloat(v('f-horas')) || 0,
+    host:                 v('f-host'),   hostHoras:   hHost,
+    owner:                v('f-owner'),  ownerHoras:  hOwner,
+    doer1:                v('f-doer1'),  doer1Horas:  hDoer1,
+    doer2:                v('f-doer2'),  doer2Horas:  hDoer2,
+    otros1:               v('f-otros1'), otros1Horas: hOtros1,
+    otros2:               v('f-otros2'), otros2Horas: hOtros2,
+    horasPresupuestadas:  hHost + hOwner + hDoer1 + hDoer2 + hOtros1 + hOtros2,
     fechaInicio:          v('f-inicio'),
     fechaCierre:          v('f-cierre'),
     fechaProyectada:      '',
@@ -876,8 +1042,10 @@ function afterSaveProyecto() {
 }
 
 function limpiarFormProyecto() {
-  ['f-nombre','f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2'].forEach(function(id){ document.getElementById(id).value=''; });
-  ['f-horas','f-semanas'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-nombre'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-host-h','f-owner-h','f-doer1-h','f-doer2-h','f-otros1-h','f-otros2-h'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-semanas'].forEach(function(id){ document.getElementById(id).value=''; });
   ['f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('f-conocimiento').value='';
   document.getElementById('f-innovacion').value='';
