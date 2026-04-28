@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISAM — Háptica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── TOKENS ──────────────────────────────────────────────────── */
+    :root {
+      --bg:       #FDE9D8;
+      --surface:  #FFFFFF;
+      --primary:  #1C3D3A;
+      --accent:   #F05028;
+      --accent-α: rgba(240,80,40,0.10);
+      --muted:    #8A9E9C;
+      --border:   #ECD9CC;
+      --text:     #1C2B2A;
+      --text-sec: #5A6B6A;
+      --green:    #6BAA75;
+      --yellow:   #F4A261;
+      --red:      #E05C4B;
+      --radius:   12px;
+      --shadow:   0 2px 16px rgba(28,61,58,0.09);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5;
+    }
+
+    /* ── HEADER ──────────────────────────────────────────────────── */
+    header {
+      background: var(--primary); height: 60px; padding: 0 32px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    .logo { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: 2px; text-transform: uppercase; }
+    .logo span { color: var(--accent); }
+    .header-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); }
+    .header-sub { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
+    .header-nav { margin-left: auto; display: flex; gap: 4px; }
+    .nav-btn {
+      padding: 6px 20px; border-radius: 20px; border: none;
+      background: transparent; color: rgba(255,255,255,0.6);
+      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .nav-btn.active { background: var(--accent); color: #fff; }
+
+    /* ── LOADING ─────────────────────────────────────────────────── */
+    #loadingMsg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(253,233,216,0.92); backdrop-filter: blur(4px);
+      z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; font-weight: 600; color: var(--primary); }
+
+    /* ── TOAST ───────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 28px; right: 28px;
+      background: var(--primary); color: #fff;
+      padding: 12px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s cubic-bezier(.4,0,.2,1);
+      z-index: 300; max-width: 340px;
+    }
+    #toast.show   { transform: translateY(0); opacity: 1; }
+    #toast.success { background: #3d8a48; }
+    #toast.error   { background: var(--red); }
+
+    /* ── MAIN ────────────────────────────────────────────────────── */
+    main { max-width: 1100px; margin: 0 auto; padding: 36px 24px 72px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── SUB-TABS ────────────────────────────────────────────────── */
+    .sub-tabs {
+      display: inline-flex; background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(12px); border-radius: 10px;
+      padding: 4px; gap: 2px; margin-bottom: 28px;
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+    .sub-tab {
+      padding: 8px 22px; border-radius: 7px; border: none;
+      background: transparent; font-size: 12px; font-weight: 600;
+      color: var(--text-sec); cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .sub-tab:hover { color: var(--primary); }
+    .sub-tab.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 8px rgba(28,61,58,0.1); }
+    .sub-view { display: none; }
+    .sub-view.active { display: block; }
+
+    /* ── FORM CARD ───────────────────────────────────────────────── */
+    .form-card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 30px 34px; box-shadow: var(--shadow); max-width: 780px;
+    }
+    .form-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 5px; }
+    .form-desc  { font-size: 12px; color: var(--text-sec); margin-bottom: 28px; }
+    .sec-label  {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+    }
+    .form-divider { height: 1px; background: var(--border); margin: 26px 0; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 22px; }
+    .form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); }
+    input[type="text"], input[type="number"], input[type="date"], select, textarea {
+      padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; font-family: inherit; color: var(--text);
+      background: #fdfaf8; outline: none; transition: border-color 0.15s, background 0.15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* ── ISAM SLIDERS ────────────────────────────────────────────── */
+    .isam-vars { display: flex; flex-direction: column; gap: 18px; margin-bottom: 22px; }
+    .isam-var {
+      background: #fdfaf8; border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 16px 20px;
+      transition: border-color 0.2s;
+    }
+    .isam-var:focus-within { border-color: rgba(240,80,40,0.4); }
+    .isam-var-head  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+    .isam-var-name  { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .isam-var-score { font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1; min-width: 28px; text-align: right; }
+    .isam-var-desc  { font-size: 11px; color: var(--text-sec); margin-bottom: 12px; line-height: 1.55; }
+
+    input[type="range"] {
+      width: 100%; height: 6px; -webkit-appearance: none;
+      background: var(--border); border-radius: 99px; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+      box-shadow: 0 2px 8px rgba(240,80,40,0.35);
+      transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 5px; }
+
+    /* ISAM preview box */
+    .isam-preview-box {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 20px; background: #fdfaf8;
+      border: 1.5px solid var(--border); border-radius: 10px; margin-bottom: 22px;
+    }
+    .isam-preview-score { font-size: 32px; font-weight: 800; line-height: 1; color: var(--primary); }
+    .isam-preview-label { font-size: 12px; color: var(--text-sec); }
+    .isam-preview-tag   { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+
+    /* Hours chips */
+    .hours-display { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; align-items: flex-end; }
+    .hours-chip {
+      display: flex; flex-direction: column; gap: 4px;
+      background: #fdfaf8; border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 12px 18px; min-width: 110px;
+    }
+    .hours-chip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); }
+    .hours-chip-value { font-size: 22px; font-weight: 800; line-height: 1; color: var(--primary); }
+    .hours-chip-value.pos { color: var(--green); }
+    .hours-chip-value.neg { color: var(--red); }
+
+    /* ── BUTTONS ─────────────────────────────────────────────────── */
+    .btn {
+      padding: 11px 24px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: all 0.2s; letter-spacing: 0.2px;
+    }
+    .btn-primary   { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #d43e18; }
+    .btn-secondary { background: transparent; border: 1.5px solid var(--border); color: var(--text-sec); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost { background: transparent; border: none; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+    .btn-ghost:hover { color: var(--primary); }
+    .btn-row { display: flex; gap: 10px; align-items: center; }
+
+    /* ── DASHBOARD SUMMARY ───────────────────────────────────────── */
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+    .sum-card { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+    .sum-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .sum-value { font-size: 36px; font-weight: 800; line-height: 1; color: var(--primary); }
+    .sum-value.accent { color: var(--accent); }
+    .sum-value.v-red   { color: var(--red); }
+    .sum-value.v-green { color: var(--green); }
+    .sum-sub { font-size: 11px; color: var(--text-sec); margin-top: 5px; }
+
+    /* ── PROJECT CARDS ───────────────────────────────────────────── */
+    .project-cards { display: flex; flex-direction: column; gap: 14px; }
+    .proj-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .proj-head {
+      display: flex; align-items: center; gap: 14px; padding: 18px 22px;
+      cursor: pointer; user-select: none; transition: background 0.12s;
+    }
+    .proj-head:hover { background: #faf9f6; }
+
+    /* ISAM score badge */
+    .isam-badge {
+      display: flex; align-items: center; justify-content: center;
+      width: 52px; height: 52px; border-radius: 14px;
+      font-size: 17px; font-weight: 800; flex-shrink: 0; letter-spacing: -0.5px;
+    }
+    .ib-green  { background: rgba(107,170,117,0.14); color: #2d7a39; }
+    .ib-yellow { background: rgba(244,162,97,0.15);  color: #b8620a; }
+    .ib-red    { background: rgba(224,92,75,0.14);   color: #aa2e1e; }
+    .ib-empty  { background: var(--accent-α);         color: var(--accent); font-size: 13px; }
+
+    .proj-info { flex: 1; min-width: 0; }
+    .proj-name { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .proj-meta { display: flex; gap: 7px; flex-wrap: wrap; }
+    .p-badge {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      padding: 2px 9px; border-radius: 6px;
+    }
+    .p-badge.accent { background: var(--accent-α); color: var(--accent); }
+    .p-badge.info   { background: rgba(28,61,58,0.07); color: var(--primary); }
+    .p-badge.green  { background: rgba(107,170,117,0.12); color: #2d7a39; }
+    .p-badge.yellow { background: rgba(244,162,97,0.15);  color: #b8620a; }
+    .p-badge.red    { background: rgba(224,92,75,0.12);   color: #aa2e1e; }
+
+    .proj-hours-col { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+    .proj-hours-main { font-size: 13px; font-weight: 700; color: var(--text); }
+    .proj-hours-delta { font-size: 12px; font-weight: 700; }
+    .delta-pos { color: var(--green); }
+    .delta-neg { color: var(--red); }
+    .proj-chevron { color: var(--muted); font-size: 14px; transition: transform 0.22s; flex-shrink: 0; margin-left: 8px; }
+    .proj-card.open .proj-chevron { transform: rotate(180deg); }
+
+    /* Card body */
+    .proj-body { display: none; border-top: 1px solid var(--border); padding: 24px 22px; }
+    .proj-card.open .proj-body { display: block; }
+    .body-grid { display: grid; grid-template-columns: 1fr 270px; gap: 24px; }
+
+    /* Chart */
+    .chart-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+    .chart-wrap  { position: relative; height: 190px; }
+
+    /* Measurements table */
+    .meds-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 18px; }
+    .meds-table th { text-align: left; padding: 8px 10px; background: rgba(240,80,40,0.05); color: var(--primary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .meds-table th:not(:first-child) { text-align: center; }
+    .meds-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .meds-table tr:last-child td { border-bottom: none; }
+    .meds-table td:not(:first-child) { text-align: center; }
+
+    /* Score pills */
+    .sp { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 24px; border-radius: 6px; font-size: 11px; font-weight: 700; padding: 0 6px; }
+    .sp.g { background: rgba(107,170,117,0.14); color: #2d7a39; }
+    .sp.y { background: rgba(244,162,97,0.15);  color: #b8620a; }
+    .sp.r { background: rgba(224,92,75,0.12);   color: #aa2e1e; }
+
+    /* Side info */
+    .side-info { display: flex; flex-direction: column; gap: 14px; }
+    .info-block { background: #fdfaf8; border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .info-block-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 10px; }
+    .info-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
+    .info-row-l { color: var(--text-sec); }
+    .info-row-v { font-weight: 600; color: var(--primary); }
+
+    /* Hours bar */
+    .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0 5px; }
+    .bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+    .bar-fill.under { background: var(--green); }
+    .bar-fill.over  { background: var(--red); }
+
+    /* Knowledge chips */
+    .kb { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .kb.novato    { background: rgba(107,170,117,0.12); color: #2d7a39; }
+    .kb.conocedor { background: rgba(244,162,97,0.14);  color: #b8620a; }
+    .kb.experto   { background: rgba(240,80,40,0.10);   color: var(--accent); }
+    .kb.bajo   { background: rgba(107,170,117,0.12); color: #2d7a39; }
+    .kb.medio  { background: rgba(244,162,97,0.14);  color: #b8620a; }
+    .kb.alto   { background: rgba(240,80,40,0.10);   color: var(--accent); }
+
+    /* ── INLINE DATE EDIT ────────────────────────────────────────── */
+    .fecha-proy-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+    .fecha-proy-row .info-row-l { color: var(--text-sec); }
+    .fecha-proy-display { display: flex; align-items: center; gap: 6px; }
+    .fecha-proy-val { font-weight: 600; color: var(--primary); }
+    .fecha-proy-val.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+    .btn-edit-fecha {
+      background: none; border: none; cursor: pointer; padding: 2px 4px;
+      color: var(--muted); font-size: 12px; line-height: 1;
+      border-radius: 4px; transition: color 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+    .btn-edit-fecha:hover { color: var(--accent); background: var(--accent-α); }
+    .fecha-proy-edit { display: none; align-items: center; gap: 6px; }
+    .fecha-proy-edit input[type="date"] {
+      padding: 4px 8px; font-size: 12px; border-radius: 6px;
+      border: 1.5px solid var(--accent); background: #fff; outline: none;
+      font-family: inherit; color: var(--text);
+    }
+    .btn-save-fecha {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 6px; padding: 4px 10px; font-size: 11px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: background 0.15s;
+    }
+    .btn-save-fecha:hover { background: #d43e18; }
+    .btn-cancel-fecha {
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 14px; padding: 2px 4px; font-family: inherit;
+      transition: color 0.15s;
+    }
+    .btn-cancel-fecha:hover { color: var(--text); }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 64px 24px; color: var(--muted); }
+    .empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.35; }
+    .empty-text { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .empty-sub  { font-size: 12px; }
+
+    /* No-meds notice */
+    .no-meds { padding: 24px 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .summary-grid { grid-template-columns: repeat(2,1fr); }
+      .body-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      main { padding: 20px 14px 48px; }
+      header { padding: 0 16px; }
+      .form-card { padding: 20px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loadingMsg">
+  <div class="spinner"></div>
+  <div class="loading-text">Cargando datos...</div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Header -->
+<header>
+  <div class="logo">HÁP<span>TICA</span></div>
+  <div class="header-sep"></div>
+  <div class="header-sub">ISAM · Indicador de Salud de Proyectos</div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showView('registro', this)">Registro</button>
+    <button class="nav-btn"        onclick="showView('dashboard', this)">Dashboard</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ═══ REGISTRO ═════════════════════════════════════════════════ -->
+  <div id="view-registro" class="view active">
+    <div class="sub-tabs">
+      <button class="sub-tab active" onclick="showSubTab('nuevo', this)">Nuevo Proyecto</button>
+      <button class="sub-tab"        onclick="showSubTab('quincenal', this)">Actualización Quincenal</button>
+    </div>
+
+    <!-- ── Nuevo Proyecto ── -->
+    <div id="subtab-nuevo" class="sub-view active">
+      <div class="form-card">
+        <div class="form-title">Nuevo Proyecto</div>
+        <div class="form-desc">Registra la información inicial del proyecto para comenzar el seguimiento ISAM.</div>
+
+        <div class="sec-label">Identificación</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Nombre del Proyecto *</label>
+            <input type="text" id="f-nombre" placeholder="Ej. Innovación Arca Continental" />
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="sec-label">Equipo Asignado</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Host Asignado</label><input type="text" id="f-host" placeholder="Nombre" /></div>
+          <div class="form-group"><label>Owner Asignado</label><input type="text" id="f-owner" placeholder="Nombre" /></div>
+          <div class="form-group"><label>Doer Asignado 1</label><input type="text" id="f-doer1" placeholder="Nombre" /></div>
+          <div class="form-group"><label>Doer Asignado 2</label><input type="text" id="f-doer2" placeholder="Nombre (opcional)" /></div>
+          <div class="form-group"><label>Otros Asignados</label><input type="text" id="f-otros1" placeholder="Nombre (opcional)" /></div>
+          <div class="form-group"><label>Otros Asignados</label><input type="text" id="f-otros2" placeholder="Nombre (opcional)" /></div>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="sec-label">Presupuesto y Fechas</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Horas Presupuestadas (vendidas)</label><input type="number" id="f-horas" placeholder="0" min="0" /></div>
+          <div class="form-group"><label>Semanas Presupuestadas</label><input type="number" id="f-semanas" placeholder="0" min="0" /></div>
+          <div class="form-group"><label>Fecha de Inicio</label><input type="date" id="f-inicio" /></div>
+          <div class="form-group"><label>Fecha Cierre Propuesta</label><input type="date" id="f-cierre" /></div>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="sec-label">Contexto</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Conocimiento Innovación del Cliente</label>
+            <select id="f-conocimiento">
+              <option value="">Seleccionar...</option>
+              <option value="novato">Novato</option>
+              <option value="conocedor">Conocedor</option>
+              <option value="experto">Experto</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Innovación Metodológica Equipo Háptica</label>
+            <select id="f-innovacion">
+              <option value="">Seleccionar...</option>
+              <option value="bajo">Bajo</option>
+              <option value="medio">Medio</option>
+              <option value="alto">Alto</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarProyecto()">Guardar Proyecto</button>
+          <button class="btn btn-secondary" onclick="limpiarFormProyecto()">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Actualización Quincenal ── -->
+    <div id="subtab-quincenal" class="sub-view">
+      <div class="form-card">
+        <div class="form-title">Actualización Quincenal</div>
+        <div class="form-desc">Registra el estado ISAM del proyecto para el período actual.</div>
+
+        <!-- Selector de proyecto + fecha -->
+        <div style="display:flex; gap:14px; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap;">
+          <div class="form-group" style="flex:1; min-width:200px;">
+            <label>Proyecto</label>
+            <select id="q-proyecto" onchange="onProyectoChange()">
+              <option value="">Seleccionar proyecto...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fecha de Medición</label>
+            <input type="date" id="q-fecha" />
+          </div>
+        </div>
+
+        <!-- Estado de Horas -->
+        <div id="q-horas-section" style="display:none;">
+          <div class="sec-label">Estado de Horas</div>
+          <div class="hours-display">
+            <div class="hours-chip">
+              <div class="hours-chip-label">Presupuestadas</div>
+              <div class="hours-chip-value" id="q-hp">—</div>
+            </div>
+            <div class="hours-chip">
+              <div class="hours-chip-label">Ejecutadas</div>
+              <div class="hours-chip-value" id="q-he">—</div>
+            </div>
+            <div class="hours-chip">
+              <div class="hours-chip-label">Delta</div>
+              <div class="hours-chip-value" id="q-hd">—</div>
+            </div>
+            <div style="padding-bottom:2px">
+              <button class="btn btn-secondary" onclick="refrescarHoras()" style="font-size:12px; padding:9px 16px;">↻ Refrescar horas</button>
+            </div>
+          </div>
+          <div class="form-divider"></div>
+        </div>
+
+        <!-- Variables ISAM -->
+        <div class="sec-label">Variables ISAM <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sec);font-size:10px;">— escala 1 (mínimo) a 5 (máximo)</span></div>
+        <div class="isam-vars">
+
+          <div class="isam-var">
+            <div class="isam-var-head">
+              <div class="isam-var-name">Fricción con Cliente</div>
+              <div class="isam-var-score" id="sv-friccion">1</div>
+            </div>
+            <div class="isam-var-desc">Mide el desgaste emocional y operativo causado por la cantidad de interlocutores y su nivel de exigencia.</div>
+            <input type="range" id="s-friccion" min="1" max="5" value="1" oninput="onSlider('friccion',this.value)" />
+            <div class="slider-labels"><span>1 · Mínima</span><span>3 · Moderada</span><span>5 · Crítica</span></div>
+          </div>
+
+          <div class="isam-var">
+            <div class="isam-var-head">
+              <div class="isam-var-name">Dependencia Crítica del Cliente</div>
+              <div class="isam-var-score" id="sv-dependencia">1</div>
+            </div>
+            <div class="isam-var-desc">Capacidad de ajustar fechas ante contingencias y riesgo de parálisis por inacción del cliente (afecta facturación).</div>
+            <input type="range" id="s-dependencia" min="1" max="5" value="1" oninput="onSlider('dependencia',this.value)" />
+            <div class="slider-labels"><span>1 · Baja</span><span>3 · Media</span><span>5 · Alta</span></div>
+          </div>
+
+          <div class="isam-var">
+            <div class="isam-var-head">
+              <div class="isam-var-name">Riesgo de Scope Creep</div>
+              <div class="isam-var-score" id="sv-scope">1</div>
+            </div>
+            <div class="isam-var-desc">Probabilidad de ejecutar tareas no presupuestadas sin renegociación, impactando directamente la rentabilidad.</div>
+            <input type="range" id="s-scope" min="1" max="5" value="1" oninput="onSlider('scope',this.value)" />
+            <div class="slider-labels"><span>1 · Bajo</span><span>3 · Moderado</span><span>5 · Alto</span></div>
+          </div>
+
+          <div class="isam-var">
+            <div class="isam-var-head">
+              <div class="isam-var-name">Afectación de Burnout — Owner</div>
+              <div class="isam-var-score" id="sv-burnout">1</div>
+            </div>
+            <div class="isam-var-desc">Mide si el proyecto obliga a trasnochos, trabajo en fines de semana o genera agotamiento mental excesivo.</div>
+            <input type="range" id="s-burnout" min="1" max="5" value="1" oninput="onSlider('burnout',this.value)" />
+            <div class="slider-labels"><span>1 · Sin impacto</span><span>3 · Moderado</span><span>5 · Crítico</span></div>
+          </div>
+
+        </div>
+
+        <!-- Preview ISAM -->
+        <div class="isam-preview-box">
+          <div>
+            <div class="isam-preview-tag">Promedio ISAM</div>
+            <div class="isam-preview-score" id="isam-preview-val">1.00</div>
+          </div>
+          <div id="isam-preview-label" class="isam-preview-label" style="margin-left:4px; border-left:2px solid var(--border); padding-left:16px;">
+            Riesgo bajo — proyecto saludable
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:22px;">
+          <label>Notas (opcional)</label>
+          <textarea id="q-notas" placeholder="Observaciones o contexto relevante de este período..."></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="guardarMedicion()">Guardar Medición</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DASHBOARD ═════════════════════════════════════════════════ -->
+  <div id="view-dashboard" class="view">
+
+    <!-- Summary row -->
+    <div class="summary-grid">
+      <div class="sum-card">
+        <div class="sum-label">Proyectos Activos</div>
+        <div class="sum-value" id="d-total">—</div>
+        <div class="sum-sub">en seguimiento ISAM</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">ISAM Promedio</div>
+        <div class="sum-value accent" id="d-isam-avg">—</div>
+        <div class="sum-sub" id="d-isam-label">último período</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">En Alerta</div>
+        <div class="sum-value v-red" id="d-alertas">—</div>
+        <div class="sum-sub">ISAM ≥ 3.5</div>
+      </div>
+    </div>
+
+    <!-- Project cards -->
+    <div id="project-cards" class="project-cards">
+      <div class="empty">
+        <div class="empty-icon">◎</div>
+        <div class="empty-text">Cargando proyectos...</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var proyectos     = [];
+var mediciones    = [];
+var horasEjec     = {};
+var chartInstances = {};
+
+var IS_GAS = (typeof google !== 'undefined') && google.script;
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('q-fecha').valueAsDate = new Date();
+  initSliders();
+
+  if (IS_GAS) {
+    cargarTodo();
+  } else {
+    loadDemoData();
+  }
+});
+
+function cargarTodo() {
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(function(data) {
+      proyectos  = data.proyectos  || [];
+      mediciones = data.mediciones || [];
+      horasEjec  = data.horasEjecutadas || {};
+      afterLoad();
+      showLoading(false);
+    })
+    .withFailureHandler(function(err) {
+      toast('Error al cargar: ' + err.message, 'error');
+      showLoading(false);
+    })
+    .getAll();
+}
+
+function afterLoad() {
+  poblarSelectProyectos();
+  renderDashboard();
+}
+
+// ─── VIEWS ────────────────────────────────────────────────────────────────────
+function showView(v, btn) {
+  document.querySelectorAll('.view').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  if (v === 'dashboard') renderDashboard();
+}
+
+function showSubTab(tab, btn) {
+  document.querySelectorAll('.sub-view').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('subtab-' + tab).classList.add('active');
+  document.querySelectorAll('.sub-tab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  var activos = proyectos.filter(function(p) { return p.estado === 'activo'; });
+
+  // Summary
+  document.getElementById('d-total').textContent = activos.length || '0';
+
+  var scores = activos.map(function(p) { return ultimoISAM(p.nombre); }).filter(function(s) { return s !== null; });
+  var avg = scores.length ? (scores.reduce(function(a,b) { return a+b; }, 0) / scores.length) : null;
+  document.getElementById('d-isam-avg').textContent = avg ? avg.toFixed(2) : '—';
+
+  var alertas = scores.filter(function(s) { return s >= 3.5; }).length;
+  var alertEl = document.getElementById('d-alertas');
+  alertEl.textContent = alertas;
+  alertEl.className   = 'sum-value ' + (alertas > 0 ? 'v-red' : '');
+
+
+  // Cards
+  var container = document.getElementById('project-cards');
+  if (activos.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">No hay proyectos activos</div><div class="empty-sub">Ve a Registro → Nuevo Proyecto para comenzar</div></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  activos.forEach(function(p) { container.appendChild(buildCard(p)); });
+  setTimeout(function() { activos.forEach(function(p) { initChart(p.nombre); }); }, 60);
+}
+
+function buildCard(p) {
+  var meds    = medsFor(p.nombre);
+  var last    = meds.length ? meds[meds.length-1].promedio : null;
+  var ejec    = horasEjec[p.nombre] || 0;
+  var pres    = parseFloat(p.horasPresupuestadas) || 0;
+  var delta   = pres - ejec;
+  var pct     = pres > 0 ? Math.min((ejec / pres) * 100, 100) : 0;
+
+  var ibClass = last === null ? 'ib-empty' : (last < 2.5 ? 'ib-green' : (last < 3.5 ? 'ib-yellow' : 'ib-red'));
+  var badgeTxt = last !== null ? last.toFixed(1) : '—';
+
+  var alertBadge = '';
+  if (last !== null && last >= 3.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
+  else if (last !== null && last >= 2.5) alertBadge = '<span class="p-badge yellow">Monitorear</span>';
+
+  var teamBadges = [
+    p.host  ? '<span class="p-badge info">Host: '+esc(p.host)+'</span>'   : '',
+    p.owner ? '<span class="p-badge info">Owner: '+esc(p.owner)+'</span>' : '',
+    alertBadge
+  ].filter(Boolean).join('');
+
+  var medsRows = meds.map(function(m) {
+    return '<tr><td>'+fechaCorta(m.fecha)+'</td><td>'+sp(m.friccion)+'</td><td>'+sp(m.dependencia)+'</td><td>'+sp(m.scopeCreep)+'</td><td>'+sp(m.burnout)+'</td><td>'+isamSp(m.promedio)+'</td>'+(m.notas?'<td style="font-size:11px;color:var(--text-sec)">'+esc(m.notas)+'</td>':'<td></td>')+'</tr>';
+  }).join('');
+
+  var medsSection = meds.length
+    ? '<table class="meds-table"><thead><tr><th>Fecha</th><th>Fricción</th><th>Depend.</th><th>Scope</th><th>Burnout</th><th>ISAM</th><th>Notas</th></tr></thead><tbody>'+medsRows+'</tbody></table>'
+    : '<div class="no-meds">Sin mediciones aún — registra la primera actualización quincenal</div>';
+
+  var barClass = ejec <= pres ? 'under' : 'over';
+
+  var equipo = [['Host',p.host],['Owner',p.owner],['Doer 1',p.doer1],['Doer 2',p.doer2],['Otros',p.otros1],['Otros',p.otros2]]
+    .filter(function(x){ return x[1]; })
+    .map(function(x){ return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+'</span></div>'; }).join('');
+
+  var div = document.createElement('div');
+  div.className = 'proj-card';
+  div.innerHTML =
+    '<div class="proj-head" onclick="toggleCard(this.parentElement)">'
+      +'<div class="isam-badge '+ibClass+'">'+badgeTxt+'</div>'
+      +'<div class="proj-info">'
+        +'<div class="proj-name">'+esc(p.nombre)+'</div>'
+        +'<div class="proj-meta">'+teamBadges+'</div>'
+      +'</div>'
+      +'<div class="proj-hours-col">'
+        +'<div class="proj-hours-main">'+Math.round(ejec)+'h / '+Math.round(pres)+'h</div>'
+        +'<div class="proj-hours-delta '+(delta>=0?'delta-pos':'delta-neg')+'">'+(delta>=0?'+':'')+Math.round(delta)+'h delta</div>'
+      +'</div>'
+      +'<div class="proj-chevron">▾</div>'
+    +'</div>'
+    +'<div class="proj-body">'
+      +'<div class="body-grid">'
+        +'<div>'
+          +'<div class="chart-title">Evolución ISAM por período</div>'
+          +'<div class="chart-wrap"><canvas id="chart-'+safeId(p.nombre)+'"></canvas></div>'
+          +medsSection
+        +'</div>'
+        +'<div class="side-info">'
+          +'<div class="info-block">'
+            +'<div class="info-block-title">Equipo</div>'
+            +equipo
+          +'</div>'
+          +'<div class="info-block">'
+            +'<div class="info-block-title">Horas</div>'
+            +'<div class="info-row"><span class="info-row-l">Presupuestadas</span><span class="info-row-v">'+Math.round(pres)+'h</span></div>'
+            +'<div class="info-row"><span class="info-row-l">Ejecutadas</span><span class="info-row-v">'+Math.round(ejec)+'h</span></div>'
+            +'<div class="info-row"><span class="info-row-l">Delta</span><span class="info-row-v '+(delta>=0?'delta-pos':'delta-neg')+'">'+(delta>=0?'+':'')+Math.round(delta)+'h</span></div>'
+            +'<div class="bar-track"><div class="bar-fill '+barClass+'" style="width:'+pct.toFixed(0)+'%"></div></div>'
+            +'<div style="font-size:10px;color:var(--muted);text-align:right">'+pct.toFixed(0)+'% ejecutado</div>'
+          +'</div>'
+          +'<div class="info-block">'
+            +'<div class="info-block-title">Cronograma</div>'
+            +'<div class="info-row"><span class="info-row-l">Inicio</span><span class="info-row-v">'+fechaCorta(p.fechaInicio)+'</span></div>'
+            +'<div class="info-row"><span class="info-row-l">Cierre propuesto</span><span class="info-row-v">'+fechaCorta(p.fechaCierre)+'</span></div>'
+            +'<div class="fecha-proy-row" id="fprow-'+safeId(p.nombre)+'">'
+              +'<span class="info-row-l">Cierre proyectado</span>'
+              +'<div class="fecha-proy-display" id="fpdisp-'+safeId(p.nombre)+'">'
+                +'<span class="fecha-proy-val'+(p.fechaProyectada?'':' empty')+'" id="fpval-'+safeId(p.nombre)+'">'+(p.fechaProyectada?fechaCorta(p.fechaProyectada):'Sin definir')+'</span>'
+                +'<button class="btn-edit-fecha" onclick="editFechaProyectada(\''+safeId(p.nombre)+'\')" title="Editar fecha proyectada">✏</button>'
+              +'</div>'
+              +'<div class="fecha-proy-edit" id="fpedit-'+safeId(p.nombre)+'">'
+                +'<input type="date" id="fpinput-'+safeId(p.nombre)+'" value="'+(p.fechaProyectada||'')+'" />'
+                +'<button class="btn-save-fecha" onclick="saveFechaProyectada(\''+p.nombre+'\',\''+safeId(p.nombre)+'\')">✓</button>'
+                +'<button class="btn-cancel-fecha" onclick="cancelFechaProyectada(\''+safeId(p.nombre)+'\')">✕</button>'
+              +'</div>'
+            +'</div>'
+            +'<div class="info-row"><span class="info-row-l">Semanas pres.</span><span class="info-row-v">'+(p.semanasPresupuestadas||'—')+'</span></div>'
+          +'</div>'
+          +'<div class="info-block">'
+            +'<div class="info-block-title">Contexto</div>'
+            +(p.conocimientoCliente?'<div style="margin-bottom:7px"><div style="font-size:10px;color:var(--muted);margin-bottom:4px">Conocimiento cliente</div><span class="kb '+p.conocimientoCliente+'">'+cap(p.conocimientoCliente)+'</span></div>':'')
+            +(p.innovacionEquipo?'<div><div style="font-size:10px;color:var(--muted);margin-bottom:4px">Innovación equipo</div><span class="kb '+p.innovacionEquipo+'">'+cap(p.innovacionEquipo)+'</span></div>':'')
+          +'</div>'
+        +'</div>'
+      +'</div>'
+    +'</div>';
+
+  return div;
+}
+
+function initChart(nombre) {
+  var meds   = medsFor(nombre);
+  var cid    = 'chart-' + safeId(nombre);
+  var canvas = document.getElementById(cid);
+  if (!canvas) return;
+
+  if (chartInstances[nombre]) { chartInstances[nombre].destroy(); delete chartInstances[nombre]; }
+
+  if (meds.length === 0) return;
+
+  chartInstances[nombre] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: meds.map(function(m){ return fechaCorta(m.fecha, true); }),
+      datasets: [
+        {
+          label: 'ISAM',
+          data: meds.map(function(m){ return m.promedio; }),
+          borderColor: '#F05028', backgroundColor: 'rgba(240,80,40,0.07)',
+          borderWidth: 2.5, pointRadius: 5, tension: 0.3, fill: true,
+          pointBackgroundColor: meds.map(function(m){ return scoreColor(m.promedio); })
+        },
+        { label: 'Fricción',   data: meds.map(function(m){ return m.friccion; }),   borderColor: 'rgba(107,170,117,0.65)', borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Depend.',    data: meds.map(function(m){ return m.dependencia; }), borderColor: 'rgba(244,162,97,0.65)',  borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Scope',      data: meds.map(function(m){ return m.scopeCreep; }),  borderColor: 'rgba(28,61,58,0.4)',     borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Burnout',    data: meds.map(function(m){ return m.burnout; }),     borderColor: 'rgba(224,92,75,0.55)',   borderWidth:1.5, pointRadius:3, tension:0.3, fill:false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        y: { min:1, max:5, ticks:{ stepSize:1, font:{size:10}, color:'#8A9E9C' }, grid:{ color:'rgba(0,0,0,0.04)' } },
+        x: { ticks:{ font:{size:10}, color:'#8A9E9C' }, grid:{ display:false } }
+      },
+      plugins: {
+        legend: { position:'bottom', labels:{ font:{size:10}, padding:10, boxWidth:10, color:'#5A6B6A' } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2); }
+          }
+        }
+      }
+    }
+  });
+}
+
+function toggleCard(card) {
+  var wasOpen = card.classList.contains('open');
+  card.classList.toggle('open');
+  if (!wasOpen) {
+    var nombre = card.querySelector('.proj-name').textContent;
+    setTimeout(function(){ initChart(nombre); }, 60);
+  }
+}
+
+// ─── FORM: NUEVO PROYECTO ─────────────────────────────────────────────────────
+function guardarProyecto() {
+  var nombre = document.getElementById('f-nombre').value.trim();
+  if (!nombre) { toast('El nombre del proyecto es obligatorio', 'error'); return; }
+  if (proyectos.find(function(p){ return p.nombre.toLowerCase()===nombre.toLowerCase(); })) {
+    toast('Ya existe un proyecto con ese nombre', 'error'); return;
+  }
+
+  var data = {
+    nombre:               nombre,
+    host:                 v('f-host'),
+    owner:                v('f-owner'),
+    doer1:                v('f-doer1'),
+    doer2:                v('f-doer2'),
+    otros1:               v('f-otros1'),
+    otros2:               v('f-otros2'),
+    horasPresupuestadas:  parseFloat(v('f-horas')) || 0,
+    fechaInicio:          v('f-inicio'),
+    fechaCierre:          v('f-cierre'),
+    fechaProyectada:      '',
+    semanasPresupuestadas: parseInt(v('f-semanas')) || 0,
+    semanasProyectadas:   0,
+    conocimientoCliente:  v('f-conocimiento'),
+    innovacionEquipo:     v('f-innovacion'),
+    estado:               'activo'
+  };
+
+  if (IS_GAS) {
+    showLoading(true);
+    google.script.run
+      .withSuccessHandler(function() {
+        proyectos.push(data);
+        afterSaveProyecto();
+        showLoading(false);
+      })
+      .withFailureHandler(function(err) {
+        toast('Error: ' + err.message, 'error');
+        showLoading(false);
+      })
+      .saveProyecto(data);
+  } else {
+    proyectos.push(data);
+    afterSaveProyecto();
+  }
+}
+
+function afterSaveProyecto() {
+  limpiarFormProyecto();
+  poblarSelectProyectos();
+  toast('Proyecto guardado correctamente', 'success');
+}
+
+function limpiarFormProyecto() {
+  ['f-nombre','f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-horas','f-semanas'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('f-conocimiento').value='';
+  document.getElementById('f-innovacion').value='';
+}
+
+// ─── FORM: QUINCENAL ──────────────────────────────────────────────────────────
+function poblarSelectProyectos() {
+  var sel = document.getElementById('q-proyecto');
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">Seleccionar proyecto...</option>';
+  proyectos.filter(function(p){ return p.estado==='activo'; }).forEach(function(p) {
+    var opt = document.createElement('option');
+    opt.value = p.nombre; opt.textContent = p.nombre;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+function onProyectoChange() {
+  var nombre = document.getElementById('q-proyecto').value;
+  var section = document.getElementById('q-horas-section');
+  if (!nombre) { section.style.display='none'; return; }
+
+  var p = proyectos.find(function(x){ return x.nombre===nombre; });
+  if (!p) return;
+
+  var ejec  = horasEjec[nombre] || 0;
+  var pres  = parseFloat(p.horasPresupuestadas) || 0;
+  var delta = pres - ejec;
+
+  document.getElementById('q-hp').textContent = Math.round(pres) + 'h';
+  document.getElementById('q-he').textContent = Math.round(ejec) + 'h';
+
+  var hd = document.getElementById('q-hd');
+  hd.textContent  = (delta>=0?'+':'') + Math.round(delta) + 'h';
+  hd.className    = 'hours-chip-value ' + (delta>=0?'pos':'neg');
+
+  section.style.display = 'block';
+}
+
+function refrescarHoras() {
+  if (!IS_GAS) { toast('Recarga disponible solo cuando está desplegado en Google Sheets', 'error'); return; }
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(function(data) {
+      horasEjec = data || {};
+      onProyectoChange();
+      showLoading(false);
+      toast('Horas actualizadas desde el staffing', 'success');
+    })
+    .withFailureHandler(function(err) {
+      toast('Error: ' + err.message, 'error');
+      showLoading(false);
+    })
+    .getHorasEjecutadas();
+}
+
+function guardarMedicion() {
+  var proyecto = document.getElementById('q-proyecto').value;
+  var fecha    = document.getElementById('q-fecha').value;
+  if (!proyecto) { toast('Selecciona un proyecto', 'error'); return; }
+  if (!fecha)    { toast('Selecciona una fecha',    'error'); return; }
+
+  var fri = parseInt(document.getElementById('s-friccion').value);
+  var dep = parseInt(document.getElementById('s-dependencia').value);
+  var sco = parseInt(document.getElementById('s-scope').value);
+  var bur = parseInt(document.getElementById('s-burnout').value);
+  var prom = parseFloat(((fri+dep+sco+bur)/4).toFixed(2));
+
+  var data = {
+    proyecto: proyecto, fecha: fecha,
+    friccion: fri, dependencia: dep, scopeCreep: sco, burnout: bur,
+    promedio: prom, notas: document.getElementById('q-notas').value.trim()
+  };
+
+  if (IS_GAS) {
+    showLoading(true);
+    google.script.run
+      .withSuccessHandler(function() {
+        mediciones.push(data);
+        afterSaveMedicion(prom);
+        showLoading(false);
+      })
+      .withFailureHandler(function(err) {
+        toast('Error: ' + err.message, 'error');
+        showLoading(false);
+      })
+      .saveMedicion(data);
+  } else {
+    mediciones.push(data);
+    afterSaveMedicion(prom);
+  }
+}
+
+function afterSaveMedicion(prom) {
+  resetSliders();
+  document.getElementById('q-notas').value = '';
+  toast('Medición guardada · ISAM ' + prom.toFixed(2), 'success');
+}
+
+// ─── SLIDERS ──────────────────────────────────────────────────────────────────
+var SLIDER_IDS = ['friccion','dependencia','scope','burnout'];
+
+function initSliders() {
+  SLIDER_IDS.forEach(function(id){ onSlider(id, 1); });
+  updatePreview();
+}
+
+function onSlider(id, val) {
+  val = parseInt(val);
+  document.getElementById('sv-' + id).textContent = val;
+
+  var pct   = ((val - 1) / 4) * 100;
+  var color = val <= 2 ? '#6BAA75' : (val <= 3 ? '#F4A261' : '#E05C4B');
+  var slider = document.getElementById('s-' + id);
+  slider.style.background = 'linear-gradient(to right, ' + color + ' ' + pct + '%, #ECD9CC ' + pct + '%)';
+
+  updatePreview();
+}
+
+function updatePreview() {
+  var vals = SLIDER_IDS.map(function(id){ return parseInt(document.getElementById('s-'+id).value); });
+  var avg  = vals.reduce(function(a,b){ return a+b; },0) / 4;
+
+  var el  = document.getElementById('isam-preview-val');
+  var lbl = document.getElementById('isam-preview-label');
+  el.textContent = avg.toFixed(2);
+
+  if (avg < 2.5) {
+    el.style.color  = '#2d7a39';
+    lbl.textContent = 'Riesgo bajo — proyecto saludable';
+  } else if (avg < 3.5) {
+    el.style.color  = '#b8620a';
+    lbl.textContent = 'Riesgo moderado — monitorear de cerca';
+  } else {
+    el.style.color  = '#aa2e1e';
+    lbl.textContent = 'Riesgo alto — requiere intervención';
+  }
+}
+
+function resetSliders() {
+  SLIDER_IDS.forEach(function(id){
+    var slider = document.getElementById('s-'+id);
+    slider.value = 1;
+    onSlider(id, 1);
+  });
+  updatePreview();
+}
+
+// ─── FECHA PROYECTADA DE CIERRE ───────────────────────────────────────────────
+function editFechaProyectada(sid) {
+  document.getElementById('fpdisp-' + sid).style.display = 'none';
+  var editEl = document.getElementById('fpedit-' + sid);
+  editEl.style.display = 'flex';
+  document.getElementById('fpinput-' + sid).focus();
+}
+
+function cancelFechaProyectada(sid) {
+  document.getElementById('fpedit-' + sid).style.display = 'none';
+  document.getElementById('fpdisp-' + sid).style.display = 'flex';
+}
+
+function saveFechaProyectada(nombre, sid) {
+  var val = document.getElementById('fpinput-' + sid).value;
+
+  // Update local state
+  var p = proyectos.find(function(x) { return x.nombre === nombre; });
+  if (p) p.fechaProyectada = val;
+
+  // Update display
+  var valEl = document.getElementById('fpval-' + sid);
+  if (val) {
+    valEl.textContent = fechaCorta(val);
+    valEl.classList.remove('empty');
+  } else {
+    valEl.textContent = 'Sin definir';
+    valEl.classList.add('empty');
+  }
+
+  // Close edit mode
+  cancelFechaProyectada(sid);
+
+  // Persist to Sheets if deployed
+  if (IS_GAS) {
+    google.script.run
+      .withSuccessHandler(function() { toast('Fecha proyectada guardada', 'success'); })
+      .withFailureHandler(function(err) { toast('Error al guardar: ' + err.message, 'error'); })
+      .saveFechaProyectada(nombre, val);
+  } else {
+    toast('Fecha proyectada actualizada', 'success');
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function medsFor(nombre) {
+  return mediciones
+    .filter(function(m){ return m.proyecto === nombre; })
+    .sort(function(a,b){ return new Date(a.fecha) - new Date(b.fecha); });
+}
+
+function ultimoISAM(nombre) {
+  var meds = medsFor(nombre);
+  return meds.length ? meds[meds.length-1].promedio : null;
+}
+
+function scoreColor(v) { return v < 2.5 ? '#6BAA75' : (v < 3.5 ? '#F4A261' : '#E05C4B'); }
+
+function sp(v) {
+  var c = v <= 2 ? 'g' : (v <= 3 ? 'y' : 'r');
+  return '<span class="sp '+c+'">'+v+'</span>';
+}
+
+function isamSp(v) {
+  var c = v < 2.5 ? 'g' : (v < 3.5 ? 'y' : 'r');
+  return '<span class="sp '+c+'">'+v.toFixed(2)+'</span>';
+}
+
+function fechaCorta(f, veryShort) {
+  if (!f) return '—';
+  var d = new Date(f + 'T00:00:00');
+  if (veryShort) return d.toLocaleDateString('es-CO', { day:'2-digit', month:'short' });
+  return d.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function cap(s)    { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function esc(s)    { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function v(id)     { return document.getElementById(id).value.trim(); }
+function safeId(s) { return s.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function showLoading(on) {
+  document.getElementById('loadingMsg').style.display = on ? 'flex' : 'none';
+}
+
+var _toastTimer;
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'show ' + (type||'');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ t.className=''; }, 3800);
+}
+
+// ─── DATA REAL (extraída del ISAM Sheet) ──────────────────────────────────────
+function loadDemoData() {
+  proyectos = [
+    {
+      nombre: 'TELMEX-01',
+      host: 'Ma Camila Venegas', owner: 'Ana Roa',
+      doer1: 'Kevin Barbosa', doer2: 'Ma Camila Rueda',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 94,
+      fechaInicio: '2026-03-26', fechaCierre: '2026-04-22',
+      semanasPresupuestadas: 3, semanasProyectadas: 4, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'MAPFRE-02',
+      host: 'Ma Camila Venegas', owner: 'Ma Alejandra Mariño',
+      doer1: 'Julián Gaitán', doer2: 'Kevin Barbosa',
+      otros1: 'Santiago Castillo', otros2: '',
+      horasPresupuestadas: 553,
+      fechaInicio: '2025-09-17', fechaCierre: '2026-01-23',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'GTC-02',
+      host: 'Ma Camila Venegas', owner: 'Azul Cardona',
+      doer1: 'Ma Fernanda Martinez', doer2: 'Ma Camila Rueda',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 160,
+      fechaInicio: '2026-03-23', fechaCierre: '2026-03-30',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'SPRC-05',
+      host: 'Ma Camila Venegas', owner: 'Stiben Ibarra',
+      doer1: 'Julián Gaitán', doer2: 'Ma Camila Rueda',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 253,
+      fechaInicio: '2026-01-21', fechaCierre: '2026-03-13',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'COOPEUCH-01',
+      host: 'Ma Alejandra Corrales', owner: 'Laura Gomez',
+      doer1: 'Ma Laura Patiño', doer2: 'Jojhann Rodriguez',
+      otros1: 'Ma Camila Rueda', otros2: '',
+      horasPresupuestadas: 215,
+      fechaInicio: '2025-09-15', fechaCierre: '2025-11-10',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'COOPEUCH-02',
+      host: 'Ma Alejandra Corrales', owner: 'Laura Gomez',
+      doer1: 'Daniela Caicedo', doer2: 'Jojhann Rodriguez',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 420,
+      fechaInicio: '2026-01-26', fechaCierre: '2026-04-17',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'SEGBOL-08',
+      host: 'Ma Alejandra Corrales', owner: 'Azul Cardona',
+      doer1: 'Laura Gómez', doer2: '',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 116,
+      fechaInicio: '2025-12-15', fechaCierre: '2026-12-18',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'BFALACHILE-01',
+      host: 'Camilo Niño', owner: 'Daniela Caicedo',
+      doer1: '', doer2: '',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 323,
+      fechaInicio: '2026-01-19', fechaCierre: '2026-03-30',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'ALBEMARLE-01',
+      host: 'Camilo Niño', owner: 'Ana Roa',
+      doer1: 'Kevin Barbosa', doer2: '',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 151,
+      fechaInicio: '2026-01-19', fechaCierre: '2026-03-09',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'LAVICLAB-07',
+      host: 'Camilo Niño', owner: 'Ma Alejandra Mariño',
+      doer1: '', doer2: '',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 6,
+      fechaInicio: '2026-03-30', fechaCierre: '',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'LEGRAND-01',
+      host: 'Daniel Pinilla', owner: 'Stiben Ibarra',
+      doer1: '', doer2: '',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 138,
+      fechaInicio: '2026-03-02', fechaCierre: '2026-05-22',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    },
+    {
+      nombre: 'SQM-07',
+      host: 'Daniel Pinilla', owner: 'Azul Cardona',
+      doer1: 'Kevin Barbosa', doer2: 'Jojhann Rodriguez',
+      otros1: '', otros2: '',
+      horasPresupuestadas: 153,
+      fechaInicio: '2026-01-26', fechaCierre: '2026-03-13',
+      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
+      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
+      estado: 'activo'
+    }
+  ];
+  mediciones = [];
+  horasEjec  = {};
+  afterLoad();
+}
+</script>
+</body>
+</html>
