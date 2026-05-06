@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
     /* ── TOKENS ──────────────────────────────────────────────────── */
     :root {
@@ -52,6 +55,19 @@
     }
     .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
     .nav-btn.active { background: var(--accent); color: #fff; }
+
+    /* ── SYNC INDICATOR ─────────────────────────────────────────── */
+    .sync-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); margin-left: 12px; flex-shrink: 0;
+      box-shadow: 0 0 0 2px rgba(107,170,117,0.3);
+      animation: pulse-sync 2.5s ease-in-out infinite;
+    }
+    .sync-dot.off { background: var(--muted); box-shadow: none; animation: none; }
+    @keyframes pulse-sync {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(107,170,117,0.3); }
+      50%       { box-shadow: 0 0 0 5px rgba(107,170,117,0.08); }
+    }
 
     /* ── LOADING ─────────────────────────────────────────────────── */
     #loadingMsg {
@@ -366,7 +382,7 @@
 <!-- Loading overlay -->
 <div id="loadingMsg">
   <div class="spinner"></div>
-  <div class="loading-text">Cargando datos...</div>
+  <div class="loading-text" id="loadingText">Conectando con Firebase...</div>
 </div>
 
 <!-- Toast -->
@@ -377,6 +393,7 @@
   <div class="logo">HÁP<span>TICA</span></div>
   <div class="header-sep"></div>
   <div class="header-sub">ISAM · Indicador de Salud de Proyectos</div>
+  <div class="sync-dot off" id="syncDot" title="Sincronización Firebase"></div>
   <nav class="header-nav">
     <button class="nav-btn active" onclick="showView('registro', this)">Registro</button>
     <button class="nav-btn"        onclick="showView('dashboard', this)">Dashboard</button>
@@ -621,9 +638,6 @@
               <div class="hours-chip-label">Delta</div>
               <div class="hours-chip-value" id="q-hd">—</div>
             </div>
-            <div style="padding-bottom:2px">
-              <button class="btn btn-secondary" onclick="refrescarHoras()" style="font-size:12px; padding:9px 16px;">↻ Refrescar horas</button>
-            </div>
           </div>
           <div class="form-divider"></div>
         </div>
@@ -731,13 +745,26 @@
 </main>
 
 <script>
+// ─── FIREBASE INIT ────────────────────────────────────────────────────────────
+var firebaseConfig = {
+  apiKey:            "AIzaSyDaUsqwy698_enTxe7dM-Ny-mUhLkeQ3sA",
+  authDomain:        "haptica-isam.firebaseapp.com",
+  projectId:         "haptica-isam",
+  storageBucket:     "haptica-isam.firebasestorage.app",
+  messagingSenderId: "73289533835",
+  appId:             "1:73289533835:web:ddb0cae95478d7f206878e"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
-var proyectos     = [];
-var mediciones    = [];
-var horasEjec     = {};
+var proyectos      = [];
+var mediciones     = [];
+var horasEjec      = {};
 var chartInstances = {};
 
-var IS_GAS = (typeof google !== 'undefined') && google.script;
+var IS_GAS      = (typeof google !== 'undefined') && google.script;
+var IS_FIREBASE = !IS_GAS; // siempre Firebase si no está en GAS
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -747,16 +774,88 @@ document.addEventListener('DOMContentLoaded', function() {
   if (IS_GAS) {
     cargarTodo();
   } else {
-    loadDemoData();
+    cargarFirebase();
   }
 });
 
+// ─── FIREBASE: CARGA CON LISTENERS EN TIEMPO REAL ────────────────────────────
+var _fbReady     = false;
+var _seeded      = false;
+var _medsLoaded  = false;
+var _projLoaded  = false;
+
+function cargarFirebase() {
+  showLoading(true);
+  setLoadingText('Conectando con Firebase...');
+
+  // ── Listener: proyectos ──
+  db.collection('proyectos')
+    .orderBy('nombre')
+    .onSnapshot(function(snap) {
+      proyectos = snap.docs.map(function(d) { return d.data(); });
+
+      // Si Firestore está vacío → seed de los proyectos demo
+      if (proyectos.length === 0 && !_seeded) {
+        _seeded = true;
+        setLoadingText('Cargando proyectos iniciales...');
+        seedDemoData();
+        return;
+      }
+
+      _projLoaded = true;
+      setSyncOn(true);
+      if (_medsLoaded || !_fbReady) { _fbReady = true; afterLoad(); showLoading(false); }
+    }, function(err) {
+      setSyncOn(false);
+      toast('Error Firebase: ' + err.message + ' — Revisa las reglas de Firestore', 'error');
+      showLoading(false);
+    });
+
+  // ── Listener: mediciones ──
+  db.collection('mediciones')
+    .orderBy('fecha')
+    .onSnapshot(function(snap) {
+      mediciones = snap.docs.map(function(d) { return d.data(); });
+      _medsLoaded = true;
+      if (_projLoaded) { _fbReady = true; afterLoad(); showLoading(false); }
+    }, function(err) {
+      console.warn('Mediciones listener:', err.message);
+      _medsLoaded = true;
+    });
+}
+
+function seedDemoData() {
+  var batch = db.batch();
+  DEMO_PROJECTS.forEach(function(p) {
+    var docId = p.nombre.replace(/[^a-zA-Z0-9]/g, '_');
+    batch.set(db.collection('proyectos').doc(docId), p);
+  });
+  batch.commit()
+    .then(function() { toast('12 proyectos cargados en Firebase ✓', 'success'); })
+    .catch(function(err) {
+      toast('No se pudo escribir en Firestore. Revisa las reglas de seguridad.', 'error');
+      // Fallback: usar datos en memoria
+      proyectos = DEMO_PROJECTS.slice();
+      _projLoaded = true;
+      _fbReady    = true;
+      afterLoad();
+      showLoading(false);
+    });
+}
+
+function setSyncOn(on) {
+  var dot = document.getElementById('syncDot');
+  if (on) { dot.classList.remove('off'); dot.title = 'Sincronizado con Firebase'; }
+  else     { dot.classList.add('off');    dot.title = 'Sin conexión Firebase'; }
+}
+
+// ─── GAS LOAD ─────────────────────────────────────────────────────────────────
 function cargarTodo() {
   showLoading(true);
   google.script.run
     .withSuccessHandler(function(data) {
-      proyectos  = data.proyectos  || [];
-      mediciones = data.mediciones || [];
+      proyectos  = data.proyectos       || [];
+      mediciones = data.mediciones      || [];
       horasEjec  = data.horasEjecutadas || {};
       afterLoad();
       showLoading(false);
@@ -793,11 +892,10 @@ function showSubTab(tab, btn) {
 function renderDashboard() {
   var activos = proyectos.filter(function(p) { return p.estado === 'activo'; });
 
-  // Summary
   document.getElementById('d-total').textContent = activos.length || '0';
 
-  var scores = activos.map(function(p) { return ultimoISAM(p.nombre); }).filter(function(s) { return s !== null; });
-  var avg = scores.length ? (scores.reduce(function(a,b) { return a+b; }, 0) / scores.length) : null;
+  var scores  = activos.map(function(p) { return ultimoISAM(p.nombre); }).filter(function(s) { return s !== null; });
+  var avg     = scores.length ? (scores.reduce(function(a,b) { return a+b; }, 0) / scores.length) : null;
   document.getElementById('d-isam-avg').textContent = avg ? avg.toFixed(2) : '—';
 
   var alertas = scores.filter(function(s) { return s >= 3.5; }).length;
@@ -805,8 +903,6 @@ function renderDashboard() {
   alertEl.textContent = alertas;
   alertEl.className   = 'sum-value ' + (alertas > 0 ? 'v-red' : '');
 
-
-  // Cards
   var container = document.getElementById('project-cards');
   if (activos.length === 0) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">No hay proyectos activos</div><div class="empty-sub">Ve a Registro → Nuevo Proyecto para comenzar</div></div>';
@@ -826,11 +922,11 @@ function buildCard(p) {
   var delta   = pres - ejec;
   var pct     = pres > 0 ? Math.min((ejec / pres) * 100, 100) : 0;
 
-  var ibClass = last === null ? 'ib-empty' : (last < 2.5 ? 'ib-green' : (last < 3.5 ? 'ib-yellow' : 'ib-red'));
+  var ibClass  = last === null ? 'ib-empty' : (last < 2.5 ? 'ib-green' : (last < 3.5 ? 'ib-yellow' : 'ib-red'));
   var badgeTxt = last !== null ? last.toFixed(1) : '—';
 
   var alertBadge = '';
-  if (last !== null && last >= 3.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
+  if      (last !== null && last >= 3.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
   else if (last !== null && last >= 2.5) alertBadge = '<span class="p-badge yellow">Monitorear</span>';
 
   var teamBadges = [
@@ -934,7 +1030,6 @@ function initChart(nombre) {
   if (!canvas) return;
 
   if (chartInstances[nombre]) { chartInstances[nombre].destroy(); delete chartInstances[nombre]; }
-
   if (meds.length === 0) return;
 
   chartInstances[nombre] = new Chart(canvas, {
@@ -949,10 +1044,10 @@ function initChart(nombre) {
           borderWidth: 2.5, pointRadius: 5, tension: 0.3, fill: true,
           pointBackgroundColor: meds.map(function(m){ return scoreColor(m.promedio); })
         },
-        { label: 'Fricción',   data: meds.map(function(m){ return m.friccion; }),   borderColor: 'rgba(107,170,117,0.65)', borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Depend.',    data: meds.map(function(m){ return m.dependencia; }), borderColor: 'rgba(244,162,97,0.65)',  borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Scope',      data: meds.map(function(m){ return m.scopeCreep; }),  borderColor: 'rgba(28,61,58,0.4)',     borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Burnout',    data: meds.map(function(m){ return m.burnout; }),     borderColor: 'rgba(224,92,75,0.55)',   borderWidth:1.5, pointRadius:3, tension:0.3, fill:false }
+        { label: 'Fricción',  data: meds.map(function(m){ return m.friccion; }),    borderColor: 'rgba(107,170,117,0.65)', borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Depend.',   data: meds.map(function(m){ return m.dependencia; }), borderColor: 'rgba(244,162,97,0.65)',  borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Scope',     data: meds.map(function(m){ return m.scopeCreep; }),  borderColor: 'rgba(28,61,58,0.4)',     borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label: 'Burnout',   data: meds.map(function(m){ return m.burnout; }),     borderColor: 'rgba(224,92,75,0.55)',   borderWidth:1.5, pointRadius:3, tension:0.3, fill:false }
       ]
     },
     options: {
@@ -963,11 +1058,7 @@ function initChart(nombre) {
       },
       plugins: {
         legend: { position:'bottom', labels:{ font:{size:10}, padding:10, boxWidth:10, color:'#5A6B6A' } },
-        tooltip: {
-          callbacks: {
-            label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2); }
-          }
-        }
+        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2); } } }
       }
     }
   });
@@ -998,37 +1089,38 @@ function guardarProyecto() {
   var hOtros2 = parseFloat(document.getElementById('f-otros2-h').value) || 0;
 
   var data = {
-    nombre:               nombre,
-    host:                 v('f-host'),   hostHoras:   hHost,
-    owner:                v('f-owner'),  ownerHoras:  hOwner,
-    doer1:                v('f-doer1'),  doer1Horas:  hDoer1,
-    doer2:                v('f-doer2'),  doer2Horas:  hDoer2,
-    otros1:               v('f-otros1'), otros1Horas: hOtros1,
-    otros2:               v('f-otros2'), otros2Horas: hOtros2,
-    horasPresupuestadas:  hHost + hOwner + hDoer1 + hDoer2 + hOtros1 + hOtros2,
-    fechaInicio:          v('f-inicio'),
-    fechaCierre:          v('f-cierre'),
-    fechaProyectada:      '',
+    nombre:                nombre,
+    host:                  v('f-host'),    hostHoras:   hHost,
+    owner:                 v('f-owner'),   ownerHoras:  hOwner,
+    doer1:                 v('f-doer1'),   doer1Horas:  hDoer1,
+    doer2:                 v('f-doer2'),   doer2Horas:  hDoer2,
+    otros1:                v('f-otros1'),  otros1Horas: hOtros1,
+    otros2:                v('f-otros2'),  otros2Horas: hOtros2,
+    horasPresupuestadas:   hHost + hOwner + hDoer1 + hDoer2 + hOtros1 + hOtros2,
+    fechaInicio:           v('f-inicio'),
+    fechaCierre:           v('f-cierre'),
+    fechaProyectada:       '',
     semanasPresupuestadas: parseInt(v('f-semanas')) || 0,
-    semanasProyectadas:   0,
-    conocimientoCliente:  v('f-conocimiento'),
-    innovacionEquipo:     v('f-innovacion'),
-    estado:               'activo'
+    semanasProyectadas:    0,
+    conocimientoCliente:   v('f-conocimiento'),
+    innovacionEquipo:      v('f-innovacion'),
+    estado:                'activo'
   };
 
   if (IS_GAS) {
     showLoading(true);
     google.script.run
-      .withSuccessHandler(function() {
-        proyectos.push(data);
-        afterSaveProyecto();
-        showLoading(false);
-      })
-      .withFailureHandler(function(err) {
-        toast('Error: ' + err.message, 'error');
-        showLoading(false);
-      })
+      .withSuccessHandler(function() { proyectos.push(data); afterSaveProyecto(); showLoading(false); })
+      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
       .saveProyecto(data);
+
+  } else if (IS_FIREBASE) {
+    showLoading(true);
+    var docId = nombre.replace(/[^a-zA-Z0-9]/g, '_');
+    db.collection('proyectos').doc(docId).set(data)
+      .then(function() { limpiarFormProyecto(); toast('Proyecto guardado en Firebase ✓', 'success'); showLoading(false); })
+      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); showLoading(false); });
+
   } else {
     proyectos.push(data);
     afterSaveProyecto();
@@ -1042,13 +1134,14 @@ function afterSaveProyecto() {
 }
 
 function limpiarFormProyecto() {
-  ['f-nombre'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('f-nombre').value = '';
   ['f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2'].forEach(function(id){ document.getElementById(id).value=''; });
   ['f-host-h','f-owner-h','f-doer1-h','f-doer2-h','f-otros1-h','f-otros2-h'].forEach(function(id){ document.getElementById(id).value=''; });
-  ['f-semanas'].forEach(function(id){ document.getElementById(id).value=''; });
-  ['f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('f-conocimiento').value='';
-  document.getElementById('f-innovacion').value='';
+  document.getElementById('f-semanas').value = '';
+  document.getElementById('f-inicio').value  = '';
+  document.getElementById('f-cierre').value  = '';
+  document.getElementById('f-conocimiento').value = '';
+  document.getElementById('f-innovacion').value   = '';
 }
 
 // ─── FORM: QUINCENAL ──────────────────────────────────────────────────────────
@@ -1065,11 +1158,11 @@ function poblarSelectProyectos() {
 }
 
 function onProyectoChange() {
-  var nombre = document.getElementById('q-proyecto').value;
+  var nombre  = document.getElementById('q-proyecto').value;
   var section = document.getElementById('q-horas-section');
   if (!nombre) { section.style.display='none'; return; }
 
-  var p = proyectos.find(function(x){ return x.nombre===nombre; });
+  var p    = proyectos.find(function(x){ return x.nombre===nombre; });
   if (!p) return;
 
   var ejec  = horasEjec[nombre] || 0;
@@ -1080,27 +1173,10 @@ function onProyectoChange() {
   document.getElementById('q-he').textContent = Math.round(ejec) + 'h';
 
   var hd = document.getElementById('q-hd');
-  hd.textContent  = (delta>=0?'+':'') + Math.round(delta) + 'h';
-  hd.className    = 'hours-chip-value ' + (delta>=0?'pos':'neg');
+  hd.textContent = (delta>=0?'+':'') + Math.round(delta) + 'h';
+  hd.className   = 'hours-chip-value ' + (delta>=0?'pos':'neg');
 
   section.style.display = 'block';
-}
-
-function refrescarHoras() {
-  if (!IS_GAS) { toast('Recarga disponible solo cuando está desplegado en Google Sheets', 'error'); return; }
-  showLoading(true);
-  google.script.run
-    .withSuccessHandler(function(data) {
-      horasEjec = data || {};
-      onProyectoChange();
-      showLoading(false);
-      toast('Horas actualizadas desde el staffing', 'success');
-    })
-    .withFailureHandler(function(err) {
-      toast('Error: ' + err.message, 'error');
-      showLoading(false);
-    })
-    .getHorasEjecutadas();
 }
 
 function guardarMedicion() {
@@ -1109,10 +1185,10 @@ function guardarMedicion() {
   if (!proyecto) { toast('Selecciona un proyecto', 'error'); return; }
   if (!fecha)    { toast('Selecciona una fecha',    'error'); return; }
 
-  var fri = parseInt(document.getElementById('s-friccion').value);
-  var dep = parseInt(document.getElementById('s-dependencia').value);
-  var sco = parseInt(document.getElementById('s-scope').value);
-  var bur = parseInt(document.getElementById('s-burnout').value);
+  var fri  = parseInt(document.getElementById('s-friccion').value);
+  var dep  = parseInt(document.getElementById('s-dependencia').value);
+  var sco  = parseInt(document.getElementById('s-scope').value);
+  var bur  = parseInt(document.getElementById('s-burnout').value);
   var prom = parseFloat(((fri+dep+sco+bur)/4).toFixed(2));
 
   var data = {
@@ -1124,16 +1200,16 @@ function guardarMedicion() {
   if (IS_GAS) {
     showLoading(true);
     google.script.run
-      .withSuccessHandler(function() {
-        mediciones.push(data);
-        afterSaveMedicion(prom);
-        showLoading(false);
-      })
-      .withFailureHandler(function(err) {
-        toast('Error: ' + err.message, 'error');
-        showLoading(false);
-      })
+      .withSuccessHandler(function() { mediciones.push(data); afterSaveMedicion(prom); showLoading(false); })
+      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
       .saveMedicion(data);
+
+  } else if (IS_FIREBASE) {
+    showLoading(true);
+    db.collection('mediciones').add(data)
+      .then(function() { afterSaveMedicion(prom); showLoading(false); })
+      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); showLoading(false); });
+
   } else {
     mediciones.push(data);
     afterSaveMedicion(prom);
@@ -1158,8 +1234,8 @@ function onSlider(id, val) {
   val = parseInt(val);
   document.getElementById('sv-' + id).textContent = val;
 
-  var pct   = ((val - 1) / 4) * 100;
-  var color = val <= 2 ? '#6BAA75' : (val <= 3 ? '#F4A261' : '#E05C4B');
+  var pct    = ((val - 1) / 4) * 100;
+  var color  = val <= 2 ? '#6BAA75' : (val <= 3 ? '#F4A261' : '#E05C4B');
   var slider = document.getElementById('s-' + id);
   slider.style.background = 'linear-gradient(to right, ' + color + ' ' + pct + '%, #ECD9CC ' + pct + '%)';
 
@@ -1204,8 +1280,8 @@ function editFechaProyectada(sid) {
 }
 
 function cancelFechaProyectada(sid) {
-  document.getElementById('fpedit-' + sid).style.display = 'none';
-  document.getElementById('fpdisp-' + sid).style.display = 'flex';
+  document.getElementById('fpedit-' + sid).style.display  = 'none';
+  document.getElementById('fpdisp-' + sid).style.display  = 'flex';
 }
 
 function saveFechaProyectada(nombre, sid) {
@@ -1217,23 +1293,24 @@ function saveFechaProyectada(nombre, sid) {
 
   // Update display
   var valEl = document.getElementById('fpval-' + sid);
-  if (val) {
-    valEl.textContent = fechaCorta(val);
-    valEl.classList.remove('empty');
-  } else {
-    valEl.textContent = 'Sin definir';
-    valEl.classList.add('empty');
-  }
+  valEl.textContent = val ? fechaCorta(val) : 'Sin definir';
+  val ? valEl.classList.remove('empty') : valEl.classList.add('empty');
 
-  // Close edit mode
   cancelFechaProyectada(sid);
 
-  // Persist to Sheets if deployed
+  // Persist
   if (IS_GAS) {
     google.script.run
       .withSuccessHandler(function() { toast('Fecha proyectada guardada', 'success'); })
-      .withFailureHandler(function(err) { toast('Error al guardar: ' + err.message, 'error'); })
+      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); })
       .saveFechaProyectada(nombre, val);
+
+  } else if (IS_FIREBASE) {
+    var docId = nombre.replace(/[^a-zA-Z0-9]/g, '_');
+    db.collection('proyectos').doc(docId).update({ fechaProyectada: val })
+      .then(function() { toast('Fecha proyectada guardada ✓', 'success'); })
+      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); });
+
   } else {
     toast('Fecha proyectada actualizada', 'success');
   }
@@ -1279,6 +1356,10 @@ function showLoading(on) {
   document.getElementById('loadingMsg').style.display = on ? 'flex' : 'none';
 }
 
+function setLoadingText(txt) {
+  document.getElementById('loadingText').textContent = txt;
+}
+
 var _toastTimer;
 function toast(msg, type) {
   var t = document.getElementById('toast');
@@ -1288,146 +1369,21 @@ function toast(msg, type) {
   _toastTimer = setTimeout(function(){ t.className=''; }, 3800);
 }
 
-// ─── DATA REAL (extraída del ISAM Sheet) ──────────────────────────────────────
-function loadDemoData() {
-  proyectos = [
-    {
-      nombre: 'TELMEX-01',
-      host: 'Ma Camila Venegas', owner: 'Ana Roa',
-      doer1: 'Kevin Barbosa', doer2: 'Ma Camila Rueda',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 94,
-      fechaInicio: '2026-03-26', fechaCierre: '2026-04-22',
-      semanasPresupuestadas: 3, semanasProyectadas: 4, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'MAPFRE-02',
-      host: 'Ma Camila Venegas', owner: 'Ma Alejandra Mariño',
-      doer1: 'Julián Gaitán', doer2: 'Kevin Barbosa',
-      otros1: 'Santiago Castillo', otros2: '',
-      horasPresupuestadas: 553,
-      fechaInicio: '2025-09-17', fechaCierre: '2026-01-23',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'GTC-02',
-      host: 'Ma Camila Venegas', owner: 'Azul Cardona',
-      doer1: 'Ma Fernanda Martinez', doer2: 'Ma Camila Rueda',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 160,
-      fechaInicio: '2026-03-23', fechaCierre: '2026-03-30',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'SPRC-05',
-      host: 'Ma Camila Venegas', owner: 'Stiben Ibarra',
-      doer1: 'Julián Gaitán', doer2: 'Ma Camila Rueda',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 253,
-      fechaInicio: '2026-01-21', fechaCierre: '2026-03-13',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'COOPEUCH-01',
-      host: 'Ma Alejandra Corrales', owner: 'Laura Gomez',
-      doer1: 'Ma Laura Patiño', doer2: 'Jojhann Rodriguez',
-      otros1: 'Ma Camila Rueda', otros2: '',
-      horasPresupuestadas: 215,
-      fechaInicio: '2025-09-15', fechaCierre: '2025-11-10',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'COOPEUCH-02',
-      host: 'Ma Alejandra Corrales', owner: 'Laura Gomez',
-      doer1: 'Daniela Caicedo', doer2: 'Jojhann Rodriguez',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 420,
-      fechaInicio: '2026-01-26', fechaCierre: '2026-04-17',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'SEGBOL-08',
-      host: 'Ma Alejandra Corrales', owner: 'Azul Cardona',
-      doer1: 'Laura Gómez', doer2: '',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 116,
-      fechaInicio: '2025-12-15', fechaCierre: '2026-12-18',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'BFALACHILE-01',
-      host: 'Camilo Niño', owner: 'Daniela Caicedo',
-      doer1: '', doer2: '',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 323,
-      fechaInicio: '2026-01-19', fechaCierre: '2026-03-30',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'ALBEMARLE-01',
-      host: 'Camilo Niño', owner: 'Ana Roa',
-      doer1: 'Kevin Barbosa', doer2: '',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 151,
-      fechaInicio: '2026-01-19', fechaCierre: '2026-03-09',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'LAVICLAB-07',
-      host: 'Camilo Niño', owner: 'Ma Alejandra Mariño',
-      doer1: '', doer2: '',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 6,
-      fechaInicio: '2026-03-30', fechaCierre: '',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'LEGRAND-01',
-      host: 'Daniel Pinilla', owner: 'Stiben Ibarra',
-      doer1: '', doer2: '',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 138,
-      fechaInicio: '2026-03-02', fechaCierre: '2026-05-22',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    },
-    {
-      nombre: 'SQM-07',
-      host: 'Daniel Pinilla', owner: 'Azul Cardona',
-      doer1: 'Kevin Barbosa', doer2: 'Jojhann Rodriguez',
-      otros1: '', otros2: '',
-      horasPresupuestadas: 153,
-      fechaInicio: '2026-01-26', fechaCierre: '2026-03-13',
-      semanasPresupuestadas: 0, semanasProyectadas: 0, fechaProyectada: '',
-      conocimientoCliente: 'novato', innovacionEquipo: 'bajo',
-      estado: 'activo'
-    }
-  ];
-  mediciones = [];
-  horasEjec  = {};
-  afterLoad();
-}
+// ─── DEMO PROJECTS (seed inicial en Firestore si está vacío) ──────────────────
+var DEMO_PROJECTS = [
+  { nombre:'TELMEX-01',      host:'Ma Camila Venegas',      owner:'Ana Roa',              doer1:'Kevin Barbosa',       doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:94,  fechaInicio:'2026-03-26', fechaCierre:'2026-04-22', semanasPresupuestadas:3,  semanasProyectadas:4, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'MAPFRE-02',      host:'Ma Camila Venegas',      owner:'Ma Alejandra Mariño',  doer1:'Julián Gaitán',       doer2:'Kevin Barbosa',    otros1:'Santiago Castillo', otros2:'', horasPresupuestadas:553, fechaInicio:'2025-09-17', fechaCierre:'2026-01-23', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'GTC-02',         host:'Ma Camila Venegas',      owner:'Azul Cardona',         doer1:'Ma Fernanda Martinez',doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:160, fechaInicio:'2026-03-23', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SPRC-05',        host:'Ma Camila Venegas',      owner:'Stiben Ibarra',        doer1:'Julián Gaitán',       doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:253, fechaInicio:'2026-01-21', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'COOPEUCH-01',    host:'Ma Alejandra Corrales',  owner:'Laura Gomez',          doer1:'Ma Laura Patiño',     doer2:'Jojhann Rodriguez',otros1:'Ma Camila Rueda',otros2:'', horasPresupuestadas:215, fechaInicio:'2025-09-15', fechaCierre:'2025-11-10', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'COOPEUCH-02',    host:'Ma Alejandra Corrales',  owner:'Laura Gomez',          doer1:'Daniela Caicedo',     doer2:'Jojhann Rodriguez',otros1:'',              otros2:'', horasPresupuestadas:420, fechaInicio:'2026-01-26', fechaCierre:'2026-04-17', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SEGBOL-08',      host:'Ma Alejandra Corrales',  owner:'Azul Cardona',         doer1:'Laura Gómez',         doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:116, fechaInicio:'2025-12-15', fechaCierre:'2026-12-18', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'BFALACHILE-01',  host:'Camilo Niño',            owner:'Daniela Caicedo',      doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:323, fechaInicio:'2026-01-19', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'ALBEMARLE-01',   host:'Camilo Niño',            owner:'Ana Roa',              doer1:'Kevin Barbosa',       doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:151, fechaInicio:'2026-01-19', fechaCierre:'2026-03-09', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'LAVICLAB-07',    host:'Camilo Niño',            owner:'Ma Alejandra Mariño',  doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:6,   fechaInicio:'2026-03-30', fechaCierre:'',           semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'LEGRAND-01',     host:'Daniel Pinilla',         owner:'Stiben Ibarra',        doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:138, fechaInicio:'2026-03-02', fechaCierre:'2026-05-22', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SQM-07',         host:'Daniel Pinilla',         owner:'Azul Cardona',         doer1:'Kevin Barbosa',       doer2:'Jojhann Rodriguez',otros1:'',              otros2:'', horasPresupuestadas:153, fechaInicio:'2026-01-26', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' }
+];
 </script>
 </body>
 </html>
