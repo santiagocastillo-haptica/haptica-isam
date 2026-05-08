@@ -561,10 +561,8 @@ var dashView       = 'activos'; // 'activos' | 'cerrados'
 var IS_GAS      = (typeof google !== 'undefined') && google.script;
 var IS_FIREBASE = !IS_GAS;
 
-// ─── STAFFING SHEET CONFIG ────────────────────────────────────────────────────
-var STAFFING_ID    = '1fPL_GZfRAH_Jz8hHfvZtPEpxf1dAlJ-8W8JOBgsTw18';
-var STAFFING_HOJA  = 'Estado Actual Operación';
-var STAFFING_FILA  = 11; // primera fila de datos en el sheet (1-indexed)
+// ─── HORAS API (Google Apps Script standalone) ────────────────────────────────
+var HORAS_API_URL = 'https://script.google.com/macros/s/AKfycbyXt0qkNaPgvaICJlYFc-i5X9_OJKX96ww8JxqVMjyqoshF77OF8DjQNAdCTdjAOaJlrw/exec';
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -650,67 +648,25 @@ function afterLoad() {
   if (!IS_GAS) fetchHorasEjecutadas();
 }
 
-// ─── HORAS EJECUTADAS desde Staffing Sheet ────────────────────────────────────
+// ─── HORAS EJECUTADAS desde Apps Script API ───────────────────────────────────
 function fetchHorasEjecutadas() {
-  var url = 'https://docs.google.com/spreadsheets/d/' + STAFFING_ID +
-            '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(STAFFING_HOJA);
-
   setSyncHoras(false);
-  fetch(url)
+  fetch(HORAS_API_URL)
     .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status + ' — ¿El sheet es público?');
-      return r.text();
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
     })
-    .then(function(csv) {
-      // Mapa de nombres de proyecto (minúsculas → nombre real)
-      var mapaProyectos = {};
-      proyectos.forEach(function(p) {
-        mapaProyectos[p.nombre.toLowerCase().trim()] = p.nombre;
-      });
-
-      var lines   = csv.split('\n');
-      var result  = {};
-      var startIdx = STAFFING_FILA - 1; // 0-indexed
-
-      for (var i = startIdx; i < lines.length; i++) {
-        var row    = parseCsvLine(lines[i]);
-        var nombre = (row[0] || '').trim();
-        if (!nombre) continue;
-
-        var key = nombre.toLowerCase();
-        if (!mapaProyectos[key]) continue; // no es un proyecto conocido
-
-        var realName = mapaProyectos[key];
-        var total = 0;
-        for (var c = 1; c < row.length; c++) {
-          var val = parseFloat(row[c]);
-          if (!isNaN(val) && val > 0) total += val;
-        }
-        if (total > 0) result[realName] = (result[realName] || 0) + total;
-      }
-
-      horasEjec = result;
+    .then(function(data) {
+      if (data.error) throw new Error(data.error);
+      horasEjec = data;
       setSyncHoras(true);
       renderDashboard();
-      onProyectoChange(); // actualiza chips de horas en quincenal
+      onProyectoChange();
     })
     .catch(function(err) {
-      console.warn('Horas staffing:', err.message);
+      console.warn('Error horas API:', err.message);
       setSyncHoras(false, true);
     });
-}
-
-function parseCsvLine(line) {
-  if (!line) return [];
-  var result = [], cur = '', inQ = false;
-  for (var i = 0; i < line.length; i++) {
-    var c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-    else { cur += c; }
-  }
-  result.push(cur.trim());
-  return result;
 }
 
 function setSyncHoras(ok, error) {
