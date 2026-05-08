@@ -219,7 +219,8 @@
     .info-block-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 10px; }
     .info-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
     .info-row-l { color: var(--text-sec); }
-    .info-row-v { font-weight: 600; color: var(--primary); }
+    .info-row-v { font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px; }
+    .persona-h-badge { font-size: 10px; font-weight: 600; background: var(--primary); color: #fff; border-radius: 99px; padding: 1px 7px; letter-spacing: 0.02em; opacity: 0.75; }
     .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0 5px; }
     .bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
     .bar-fill.under { background: var(--green); }
@@ -555,6 +556,7 @@ var db = firebase.firestore();
 var proyectos      = [];
 var mediciones     = [];
 var horasEjec      = {};
+var horasPersonas  = {}; // {PROYECTO: {PERSONA_ABREV: horas}}
 var chartInstances = {};
 var dashView       = 'activos'; // 'activos' | 'cerrados'
 
@@ -634,7 +636,8 @@ function cargarTodo() {
     .withSuccessHandler(function(data) {
       proyectos  = data.proyectos       || [];
       mediciones = data.mediciones      || [];
-      horasEjec  = data.horasEjecutadas || {};
+      horasEjec     = data.horasEjecutadas || {};
+      horasPersonas = {};
       afterLoad(); showLoading(false);
     })
     .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
@@ -658,7 +661,8 @@ function fetchHorasEjecutadas() {
     })
     .then(function(data) {
       if (data.error) throw new Error(data.error);
-      horasEjec = data;
+      horasEjec    = data.totals    || data;
+      horasPersonas = data.personas || {};
       setSyncHoras(true);
       renderDashboard();
       onProyectoChange();
@@ -764,6 +768,27 @@ function poblarFiltroHost() {
   if (cur) sel.value = cur;
 }
 
+// ─── MATCHING NOMBRES (completo vs abreviado) ─────────────────────────────────
+// Ej: "Ana Roa" vs "A. Roa"  →  true
+function matchNombre(completo, abrev) {
+  if (!completo || !abrev) return false;
+  var c = completo.toLowerCase().replace(/\./g,'').trim().split(/\s+/);
+  var a = abrev.toLowerCase().replace(/\./g,'').trim().split(/\s+/);
+  // Apellido (última palabra) debe coincidir
+  if (c[c.length-1] !== a[a.length-1]) return false;
+  // Inicial del primer nombre debe coincidir
+  return (a[0].length === 1) ? c[0][0] === a[0][0] : c[0] === a[0];
+}
+
+function horasDePersona(proyecto, nombreCompleto) {
+  var porPersona = horasPersonas[proyecto];
+  if (!porPersona) return null;
+  for (var abrev in porPersona) {
+    if (matchNombre(nombreCompleto, abrev)) return porPersona[abrev];
+  }
+  return null;
+}
+
 // ─── BUILD CARD ───────────────────────────────────────────────────────────────
 function buildCard(p) {
   var meds  = medsFor(p.nombre);
@@ -798,16 +823,19 @@ function buildCard(p) {
   var barClass = ejec <= pres ? 'under' : 'over';
 
   var equipo = [
-    ['Host',   p.host,   p.hostHoras],
-    ['Owner',  p.owner,  p.ownerHoras],
-    ['Doer 1', p.doer1,  p.doer1Horas],
-    ['Doer 2', p.doer2,  p.doer2Horas],
-    ['Otros',  p.otros1, p.otros1Horas],
-    ['Otros',  p.otros2, p.otros2Horas]
+    ['Host',   p.host],
+    ['Owner',  p.owner],
+    ['Doer 1', p.doer1],
+    ['Doer 2', p.doer2],
+    ['Otros',  p.otros1],
+    ['Otros',  p.otros2]
   ].filter(function(x){ return x[1]; })
    .map(function(x){
-     var hLabel = x[2] ? '<span style="font-size:11px;color:var(--muted);margin-left:6px;">'+x[2]+'h</span>' : '';
-     return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hLabel+'</span></div>';
+     var hEjec = horasDePersona(p.nombre, x[1]);
+     var hTag  = hEjec !== null
+       ? '<span class="persona-h-badge">'+Math.round(hEjec)+'h</span>'
+       : '';
+     return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hTag+'</span></div>';
    }).join('');
 
   var isCerrado  = p.estado === 'cerrado';
