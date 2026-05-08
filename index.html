@@ -8,11 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- Firebase SDK (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
-    /* ── TOKENS ──────────────────────────────────────────────────── */
     :root {
       --bg:       #FDE9D8;
       --surface:  #FFFFFF;
@@ -30,12 +28,9 @@
       --shadow:   0 2px 16px rgba(28,61,58,0.09);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5;
-    }
+    body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
 
-    /* ── HEADER ──────────────────────────────────────────────────── */
+    /* ── HEADER ── */
     header {
       background: var(--primary); height: 60px; padding: 0 32px;
       display: flex; align-items: center; gap: 16px;
@@ -47,253 +42,172 @@
     .header-sep { width: 1px; height: 22px; background: rgba(255,255,255,0.15); }
     .header-sub { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 0.5px; }
     .header-nav { margin-left: auto; display: flex; gap: 4px; }
-    .nav-btn {
-      padding: 6px 20px; border-radius: 20px; border: none;
-      background: transparent; color: rgba(255,255,255,0.6);
-      font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
-      transition: all 0.2s; letter-spacing: 0.3px;
-    }
+    .nav-btn { padding: 6px 20px; border-radius: 20px; border: none; background: transparent; color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
     .nav-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
     .nav-btn.active { background: var(--accent); color: #fff; }
-
-    /* ── SYNC INDICATOR ─────────────────────────────────────────── */
-    .sync-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--green); margin-left: 12px; flex-shrink: 0;
-      box-shadow: 0 0 0 2px rgba(107,170,117,0.3);
-      animation: pulse-sync 2.5s ease-in-out infinite;
-    }
+    .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-left: 12px; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(107,170,117,0.3); animation: pulse-sync 2.5s ease-in-out infinite; }
     .sync-dot.off { background: var(--muted); box-shadow: none; animation: none; }
-    @keyframes pulse-sync {
-      0%, 100% { box-shadow: 0 0 0 2px rgba(107,170,117,0.3); }
-      50%       { box-shadow: 0 0 0 5px rgba(107,170,117,0.08); }
-    }
+    @keyframes pulse-sync { 0%,100% { box-shadow: 0 0 0 2px rgba(107,170,117,0.3); } 50% { box-shadow: 0 0 0 5px rgba(107,170,117,0.08); } }
 
-    /* ── LOADING ─────────────────────────────────────────────────── */
-    #loadingMsg {
-      display: none; position: fixed; inset: 0;
-      background: rgba(253,233,216,0.92); backdrop-filter: blur(4px);
-      z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-    }
+    /* ── LOADING / TOAST ── */
+    #loadingMsg { display: none; position: fixed; inset: 0; background: rgba(253,233,216,0.92); backdrop-filter: blur(4px); z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
     .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { font-size: 14px; font-weight: 600; color: var(--primary); }
-
-    /* ── TOAST ───────────────────────────────────────────────────── */
-    #toast {
-      position: fixed; bottom: 28px; right: 28px;
-      background: var(--primary); color: #fff;
-      padding: 12px 20px; border-radius: 10px;
-      font-size: 13px; font-weight: 600;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      transform: translateY(80px); opacity: 0;
-      transition: all 0.3s cubic-bezier(.4,0,.2,1);
-      z-index: 300; max-width: 340px;
-    }
-    #toast.show   { transform: translateY(0); opacity: 1; }
+    #toast { position: fixed; bottom: 28px; right: 28px; background: var(--primary); color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(.4,0,.2,1); z-index: 300; max-width: 340px; }
+    #toast.show { transform: translateY(0); opacity: 1; }
     #toast.success { background: #3d8a48; }
     #toast.error   { background: var(--red); }
 
-    /* ── MAIN ────────────────────────────────────────────────────── */
+    /* ── LAYOUT ── */
     main { max-width: 1100px; margin: 0 auto; padding: 36px 24px 72px; }
     .view { display: none; }
     .view.active { display: block; }
 
-    /* ── SUB-TABS ────────────────────────────────────────────────── */
-    .sub-tabs {
-      display: inline-flex; background: rgba(255,255,255,0.55);
-      backdrop-filter: blur(12px); border-radius: 10px;
-      padding: 4px; gap: 2px; margin-bottom: 28px;
-      border: 1px solid rgba(255,255,255,0.7);
-    }
-    .sub-tab {
-      padding: 8px 22px; border-radius: 7px; border: none;
-      background: transparent; font-size: 12px; font-weight: 600;
-      color: var(--text-sec); cursor: pointer; font-family: inherit; transition: all 0.2s;
-    }
+    /* ── SUB-TABS ── */
+    .sub-tabs { display: inline-flex; background: rgba(255,255,255,0.55); backdrop-filter: blur(12px); border-radius: 10px; padding: 4px; gap: 2px; margin-bottom: 28px; border: 1px solid rgba(255,255,255,0.7); }
+    .sub-tab { padding: 8px 22px; border-radius: 7px; border: none; background: transparent; font-size: 12px; font-weight: 600; color: var(--text-sec); cursor: pointer; font-family: inherit; transition: all 0.2s; }
     .sub-tab:hover { color: var(--primary); }
     .sub-tab.active { background: var(--surface); color: var(--primary); box-shadow: 0 2px 8px rgba(28,61,58,0.1); }
     .sub-view { display: none; }
     .sub-view.active { display: block; }
 
-    /* ── FORM CARD ───────────────────────────────────────────────── */
-    .form-card {
-      background: var(--surface); border-radius: var(--radius);
-      padding: 30px 34px; box-shadow: var(--shadow); max-width: 780px;
-    }
+    /* ── FORM CARD ── */
+    .form-card { background: var(--surface); border-radius: var(--radius); padding: 30px 34px; box-shadow: var(--shadow); max-width: 780px; }
     .form-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 5px; }
     .form-desc  { font-size: 12px; color: var(--text-sec); margin-bottom: 28px; }
-    .sec-label  {
-      font-size: 10px; font-weight: 700; letter-spacing: 1px;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
-    }
+    .sec-label  { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
     .form-divider { height: 1px; background: var(--border); margin: 26px 0; }
 
-    /* ── ROLE ROWS (select + horas) ──────────────────────────────── */
+    /* ── ROLE ROWS ── */
     .role-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
     .role-row { display: flex; align-items: center; gap: 12px; }
-    .role-row-label {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.7px; color: var(--muted);
-      width: 130px; flex-shrink: 0;
-    }
+    .role-row-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); width: 130px; flex-shrink: 0; }
     .role-row select { flex: 1; }
-    .role-row .horas-input {
-      width: 80px; flex-shrink: 0;
-      text-align: right;
-    }
     .horas-input-wrap { position: relative; width: 80px; flex-shrink: 0; }
     .horas-input-wrap input { width: 100%; padding-right: 22px; text-align: right; }
-    .horas-input-wrap::after {
-      content: 'h'; position: absolute; right: 10px; top: 50%;
-      transform: translateY(-50%); font-size: 12px; color: var(--muted);
-      pointer-events: none;
-    }
+    .horas-input-wrap::after { content: 'h'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
 
+    /* ── FORM ELEMENTS ── */
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 24px; margin-bottom: 22px; }
-    .form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group.full { grid-column: 1 / -1; }
     label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); }
-    input[type="text"], input[type="number"], input[type="date"], select, textarea {
-      padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px;
-      font-size: 13px; font-family: inherit; color: var(--text);
-      background: #fdfaf8; outline: none; transition: border-color 0.15s, background 0.15s;
-    }
+    input[type="text"], input[type="number"], input[type="date"], select, textarea { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; color: var(--text); background: #fdfaf8; outline: none; transition: border-color 0.15s, background 0.15s; }
     input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; }
     textarea { resize: vertical; min-height: 80px; }
 
-    /* ── ISAM SLIDERS ────────────────────────────────────────────── */
+    /* ── SEARCH INPUT ── */
+    .search-input-wrap { position: relative; margin-bottom: 6px; }
+    .search-input-wrap input { width: 100%; padding-left: 32px; }
+    .search-input-wrap::before { content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; pointer-events: none; }
+
+    /* ── WEEK SELECTOR ── */
+    .week-row { display: flex; gap: 10px; align-items: flex-end; }
+    .week-row .form-group { flex: 1; }
+
+    /* ── SLIDERS ── */
     .isam-vars { display: flex; flex-direction: column; gap: 18px; margin-bottom: 22px; }
-    .isam-var {
-      background: #fdfaf8; border: 1.5px solid var(--border);
-      border-radius: 10px; padding: 16px 20px;
-      transition: border-color 0.2s;
-    }
+    .isam-var { background: #fdfaf8; border: 1.5px solid var(--border); border-radius: 10px; padding: 16px 20px; transition: border-color 0.2s; }
     .isam-var:focus-within { border-color: rgba(240,80,40,0.4); }
-    .isam-var-head  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+    .isam-var-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
     .isam-var-name  { font-size: 13px; font-weight: 700; color: var(--primary); }
     .isam-var-score { font-size: 24px; font-weight: 800; color: var(--primary); line-height: 1; min-width: 28px; text-align: right; }
     .isam-var-desc  { font-size: 11px; color: var(--text-sec); margin-bottom: 12px; line-height: 1.55; }
-
-    input[type="range"] {
-      width: 100%; height: 6px; -webkit-appearance: none;
-      background: var(--border); border-radius: 99px; outline: none; cursor: pointer;
-    }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 20px; height: 20px;
-      border-radius: 50%; background: var(--accent); cursor: pointer;
-      box-shadow: 0 2px 8px rgba(240,80,40,0.35);
-      transition: transform 0.15s;
-    }
+    input[type="range"] { width: 100%; height: 6px; -webkit-appearance: none; background: var(--border); border-radius: 99px; outline: none; cursor: pointer; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgba(240,80,40,0.35); transition: transform 0.15s; }
     input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
     .slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 5px; }
 
-    /* ISAM preview box */
-    .isam-preview-box {
-      display: flex; align-items: center; gap: 16px;
-      padding: 14px 20px; background: #fdfaf8;
-      border: 1.5px solid var(--border); border-radius: 10px; margin-bottom: 22px;
-    }
+    /* ── PREVIEW BOX ── */
+    .isam-preview-box { display: flex; align-items: center; gap: 16px; padding: 14px 20px; background: #fdfaf8; border: 1.5px solid var(--border); border-radius: 10px; margin-bottom: 22px; }
     .isam-preview-score { font-size: 32px; font-weight: 800; line-height: 1; color: var(--primary); }
     .isam-preview-label { font-size: 12px; color: var(--text-sec); }
     .isam-preview-tag   { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
 
-    /* Hours chips */
+    /* ── HOURS CHIPS ── */
     .hours-display { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; align-items: flex-end; }
-    .hours-chip {
-      display: flex; flex-direction: column; gap: 4px;
-      background: #fdfaf8; border: 1.5px solid var(--border);
-      border-radius: 10px; padding: 12px 18px; min-width: 110px;
-    }
+    .hours-chip { display: flex; flex-direction: column; gap: 4px; background: #fdfaf8; border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 18px; min-width: 110px; }
     .hours-chip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); }
     .hours-chip-value { font-size: 22px; font-weight: 800; line-height: 1; color: var(--primary); }
     .hours-chip-value.pos { color: var(--green); }
     .hours-chip-value.neg { color: var(--red); }
 
-    /* ── BUTTONS ─────────────────────────────────────────────────── */
-    .btn {
-      padding: 11px 24px; border-radius: 8px; border: none;
-      font-size: 13px; font-weight: 700; cursor: pointer;
-      font-family: inherit; transition: all 0.2s; letter-spacing: 0.2px;
-    }
+    /* ── BUTTONS ── */
+    .btn { padding: 11px 24px; border-radius: 8px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.2s; }
     .btn-primary   { background: var(--accent); color: #fff; }
     .btn-primary:hover { background: #d43e18; }
     .btn-secondary { background: transparent; border: 1.5px solid var(--border); color: var(--text-sec); }
     .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-ghost { background: transparent; border: none; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: color 0.15s; }
-    .btn-ghost:hover { color: var(--primary); }
     .btn-row { display: flex; gap: 10px; align-items: center; }
 
-    /* ── DASHBOARD SUMMARY ───────────────────────────────────────── */
+    /* ── FILTER BAR ── */
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
+    .filter-bar .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 300px; }
+    .filter-bar .search-wrap input { width: 100%; padding-left: 32px; }
+    .filter-bar .search-wrap::before { content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; pointer-events: none; }
+    .filter-bar select { min-width: 160px; }
+
+    /* ── DASHBOARD SUMMARY ── */
     .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
     .sum-card { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
     .sum-label { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
     .sum-value { font-size: 36px; font-weight: 800; line-height: 1; color: var(--primary); }
-    .sum-value.accent { color: var(--accent); }
-    .sum-value.v-red   { color: var(--red); }
     .sum-value.v-green { color: var(--green); }
+    .sum-value.v-yellow { color: var(--yellow); }
+    .sum-value.v-red    { color: var(--red); }
     .sum-sub { font-size: 11px; color: var(--text-sec); margin-top: 5px; }
 
-    /* ── PROJECT CARDS ───────────────────────────────────────────── */
+    /* ── PROJECT CARDS ── */
     .project-cards { display: flex; flex-direction: column; gap: 14px; }
     .proj-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-    .proj-head {
-      display: flex; align-items: center; gap: 14px; padding: 18px 22px;
-      cursor: pointer; user-select: none; transition: background 0.12s;
-    }
+    .proj-head { display: flex; align-items: center; gap: 14px; padding: 18px 22px; cursor: pointer; user-select: none; transition: background 0.12s; }
     .proj-head:hover { background: #faf9f6; }
-
-    /* ISAM score badge */
-    .isam-badge {
-      display: flex; align-items: center; justify-content: center;
-      width: 52px; height: 52px; border-radius: 14px;
-      font-size: 17px; font-weight: 800; flex-shrink: 0; letter-spacing: -0.5px;
-    }
+    .isam-badge { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; font-size: 17px; font-weight: 800; flex-shrink: 0; letter-spacing: -0.5px; }
     .ib-green  { background: rgba(107,170,117,0.14); color: #2d7a39; }
     .ib-yellow { background: rgba(244,162,97,0.15);  color: #b8620a; }
     .ib-red    { background: rgba(224,92,75,0.14);   color: #aa2e1e; }
-    .ib-empty  { background: var(--accent-α);         color: var(--accent); font-size: 13px; }
-
+    .ib-empty  { background: var(--accent-α); color: var(--accent); font-size: 13px; }
     .proj-info { flex: 1; min-width: 0; }
     .proj-name { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .proj-meta { display: flex; gap: 7px; flex-wrap: wrap; }
-    .p-badge {
-      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
-      padding: 2px 9px; border-radius: 6px;
-    }
-    .p-badge.accent { background: var(--accent-α); color: var(--accent); }
+    .p-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 9px; border-radius: 6px; }
     .p-badge.info   { background: rgba(28,61,58,0.07); color: var(--primary); }
     .p-badge.green  { background: rgba(107,170,117,0.12); color: #2d7a39; }
     .p-badge.yellow { background: rgba(244,162,97,0.15);  color: #b8620a; }
     .p-badge.red    { background: rgba(224,92,75,0.12);   color: #aa2e1e; }
-
     .proj-hours-col { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
-    .proj-hours-main { font-size: 13px; font-weight: 700; color: var(--text); }
+    .proj-hours-main  { font-size: 13px; font-weight: 700; color: var(--text); }
     .proj-hours-delta { font-size: 12px; font-weight: 700; }
     .delta-pos { color: var(--green); }
     .delta-neg { color: var(--red); }
-    .proj-chevron { color: var(--muted); font-size: 14px; transition: transform 0.22s; flex-shrink: 0; margin-left: 8px; }
-    .proj-card.open .proj-chevron { transform: rotate(180deg); }
 
-    /* Card body */
+    /* Toggle estado button */
+    .btn-toggle-estado {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 700;
+      cursor: pointer; font-family: inherit; color: var(--muted);
+      transition: all 0.15s; flex-shrink: 0; margin-left: 4px;
+    }
+    .btn-toggle-estado:hover { border-color: var(--red); color: var(--red); }
+    .btn-toggle-estado.reactivar { border-color: var(--green); color: #2d7a39; }
+    .btn-toggle-estado.reactivar:hover { background: rgba(107,170,117,0.1); }
+
+    .proj-chevron { color: var(--muted); font-size: 14px; transition: transform 0.22s; flex-shrink: 0; margin-left: 4px; }
+    .proj-card.open .proj-chevron { transform: rotate(180deg); }
     .proj-body { display: none; border-top: 1px solid var(--border); padding: 24px 22px; }
     .proj-card.open .proj-body { display: block; }
     .body-grid { display: grid; grid-template-columns: 1fr 270px; gap: 24px; }
 
-    /* Chart */
+    /* Chart + table */
     .chart-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
     .chart-wrap  { position: relative; height: 190px; }
-
-    /* Measurements table */
     .meds-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 18px; }
     .meds-table th { text-align: left; padding: 8px 10px; background: rgba(240,80,40,0.05); color: var(--primary); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
     .meds-table th:not(:first-child) { text-align: center; }
     .meds-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
     .meds-table tr:last-child td { border-bottom: none; }
     .meds-table td:not(:first-child) { text-align: center; }
-
-    /* Score pills */
     .sp { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 24px; border-radius: 6px; font-size: 11px; font-weight: 700; padding: 0 6px; }
     .sp.g { background: rgba(107,170,117,0.14); color: #2d7a39; }
     .sp.y { background: rgba(244,162,97,0.15);  color: #b8620a; }
@@ -306,65 +220,42 @@
     .info-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
     .info-row-l { color: var(--text-sec); }
     .info-row-v { font-weight: 600; color: var(--primary); }
-
-    /* Hours bar */
     .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0 5px; }
     .bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
     .bar-fill.under { background: var(--green); }
     .bar-fill.over  { background: var(--red); }
-
-    /* Knowledge chips */
     .kb { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
     .kb.novato    { background: rgba(107,170,117,0.12); color: #2d7a39; }
     .kb.conocedor { background: rgba(244,162,97,0.14);  color: #b8620a; }
     .kb.experto   { background: rgba(240,80,40,0.10);   color: var(--accent); }
-    .kb.bajo   { background: rgba(107,170,117,0.12); color: #2d7a39; }
-    .kb.medio  { background: rgba(244,162,97,0.14);  color: #b8620a; }
-    .kb.alto   { background: rgba(240,80,40,0.10);   color: var(--accent); }
+    .kb.bajo  { background: rgba(107,170,117,0.12); color: #2d7a39; }
+    .kb.medio { background: rgba(244,162,97,0.14);  color: #b8620a; }
+    .kb.alto  { background: rgba(240,80,40,0.10);   color: var(--accent); }
 
-    /* ── INLINE DATE EDIT ────────────────────────────────────────── */
+    /* Inline date edit */
     .fecha-proy-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; font-size: 12px; }
-    .fecha-proy-row .info-row-l { color: var(--text-sec); }
     .fecha-proy-display { display: flex; align-items: center; gap: 6px; }
     .fecha-proy-val { font-weight: 600; color: var(--primary); }
     .fecha-proy-val.empty { color: var(--muted); font-weight: 400; font-style: italic; }
-    .btn-edit-fecha {
-      background: none; border: none; cursor: pointer; padding: 2px 4px;
-      color: var(--muted); font-size: 12px; line-height: 1;
-      border-radius: 4px; transition: color 0.15s, background 0.15s;
-      font-family: inherit;
-    }
+    .btn-edit-fecha { background: none; border: none; cursor: pointer; padding: 2px 4px; color: var(--muted); font-size: 12px; border-radius: 4px; transition: color 0.15s, background 0.15s; font-family: inherit; }
     .btn-edit-fecha:hover { color: var(--accent); background: var(--accent-α); }
     .fecha-proy-edit { display: none; align-items: center; gap: 6px; }
-    .fecha-proy-edit input[type="date"] {
-      padding: 4px 8px; font-size: 12px; border-radius: 6px;
-      border: 1.5px solid var(--accent); background: #fff; outline: none;
-      font-family: inherit; color: var(--text);
-    }
-    .btn-save-fecha {
-      background: var(--accent); color: #fff; border: none;
-      border-radius: 6px; padding: 4px 10px; font-size: 11px;
-      font-weight: 700; cursor: pointer; font-family: inherit;
-      transition: background 0.15s;
-    }
+    .fecha-proy-edit input[type="date"] { padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1.5px solid var(--accent); background: #fff; outline: none; font-family: inherit; color: var(--text); }
+    .btn-save-fecha { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; }
     .btn-save-fecha:hover { background: #d43e18; }
-    .btn-cancel-fecha {
-      background: none; border: none; cursor: pointer; color: var(--muted);
-      font-size: 14px; padding: 2px 4px; font-family: inherit;
-      transition: color 0.15s;
-    }
-    .btn-cancel-fecha:hover { color: var(--text); }
+    .btn-cancel-fecha { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 2px 4px; font-family: inherit; }
 
-    /* Empty state */
+    /* Empty / no-meds */
     .empty { text-align: center; padding: 64px 24px; color: var(--muted); }
     .empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.35; }
     .empty-text { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
     .empty-sub  { font-size: 12px; }
-
-    /* No-meds notice */
     .no-meds { padding: 24px 0; text-align: center; font-size: 12px; color: var(--muted); }
 
-    /* ── RESPONSIVE ──────────────────────────────────────────────── */
+    /* Cerrado card style */
+    .proj-card.cerrado { opacity: 0.7; }
+    .proj-card.cerrado .proj-name { text-decoration: line-through; }
+
     @media (max-width: 900px) {
       .summary-grid { grid-template-columns: repeat(2,1fr); }
       .body-grid { grid-template-columns: 1fr; }
@@ -379,16 +270,12 @@
 </head>
 <body>
 
-<!-- Loading overlay -->
 <div id="loadingMsg">
   <div class="spinner"></div>
   <div class="loading-text" id="loadingText">Conectando con Firebase...</div>
 </div>
-
-<!-- Toast -->
 <div id="toast"></div>
 
-<!-- Header -->
 <header>
   <div class="logo">HÁP<span>TICA</span></div>
   <div class="header-sep"></div>
@@ -402,14 +289,14 @@
 
 <main>
 
-  <!-- ═══ REGISTRO ═════════════════════════════════════════════════ -->
+  <!-- ═══ REGISTRO ═══════════════════════════════════════════════════════ -->
   <div id="view-registro" class="view active">
     <div class="sub-tabs">
       <button class="sub-tab active" onclick="showSubTab('nuevo', this)">Nuevo Proyecto</button>
       <button class="sub-tab"        onclick="showSubTab('quincenal', this)">Actualización Quincenal</button>
     </div>
 
-    <!-- ── Nuevo Proyecto ── -->
+    <!-- Nuevo Proyecto -->
     <div id="subtab-nuevo" class="sub-view active">
       <div class="form-card">
         <div class="form-title">Nuevo Proyecto</div>
@@ -430,11 +317,7 @@
             <span class="role-row-label">Host Asignado</span>
             <select id="f-host">
               <option value="">Sin asignar</option>
-              <option>Angélica Flechas</option>
-              <option>María Camila Venegas</option>
-              <option>María Alejandra Corrales</option>
-              <option>Daniel Pinilla</option>
-              <option>Camilo Niño</option>
+              <option>Angélica Flechas</option><option>María Camila Venegas</option><option>María Alejandra Corrales</option><option>Daniel Pinilla</option><option>Camilo Niño</option>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-host-h" placeholder="0" min="0" /></div>
           </div>
@@ -442,20 +325,7 @@
             <span class="role-row-label">Owner Asignado</span>
             <select id="f-owner">
               <option value="">Sin asignar</option>
-              <option>Azul Cardona</option>
-              <option>María Laura Patiño</option>
-              <option>Daniela Caicedo</option>
-              <option>Laura Gómez</option>
-              <option>Stiben Ibarra</option>
-              <option>Natalia Rodríguez</option>
-              <option>María Alejandra Mariño</option>
-              <option>María Fernanda Martínez</option>
-              <option>Ana Roa</option>
-              <option>Julián Gaitán</option>
-              <option>Santiago Castillo</option>
-              <option>Jhojann Rodríguez</option>
-              <option>Kevin Barbosa</option>
-              <option>María Camila Rueda</option>
+              <option>Azul Cardona</option><option>María Laura Patiño</option><option>Daniela Caicedo</option><option>Laura Gómez</option><option>Stiben Ibarra</option><option>Natalia Rodríguez</option><option>María Alejandra Mariño</option><option>María Fernanda Martínez</option><option>Ana Roa</option><option>Julián Gaitán</option><option>Santiago Castillo</option><option>Jhojann Rodríguez</option><option>Kevin Barbosa</option><option>María Camila Rueda</option>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-owner-h" placeholder="0" min="0" /></div>
           </div>
@@ -463,20 +333,7 @@
             <span class="role-row-label">Doer Asignado 1</span>
             <select id="f-doer1">
               <option value="">Sin asignar</option>
-              <option>Azul Cardona</option>
-              <option>María Laura Patiño</option>
-              <option>Daniela Caicedo</option>
-              <option>Laura Gómez</option>
-              <option>Stiben Ibarra</option>
-              <option>Natalia Rodríguez</option>
-              <option>María Alejandra Mariño</option>
-              <option>María Fernanda Martínez</option>
-              <option>Ana Roa</option>
-              <option>Julián Gaitán</option>
-              <option>Santiago Castillo</option>
-              <option>Jhojann Rodríguez</option>
-              <option>Kevin Barbosa</option>
-              <option>María Camila Rueda</option>
+              <option>Azul Cardona</option><option>María Laura Patiño</option><option>Daniela Caicedo</option><option>Laura Gómez</option><option>Stiben Ibarra</option><option>Natalia Rodríguez</option><option>María Alejandra Mariño</option><option>María Fernanda Martínez</option><option>Ana Roa</option><option>Julián Gaitán</option><option>Santiago Castillo</option><option>Jhojann Rodríguez</option><option>Kevin Barbosa</option><option>María Camila Rueda</option>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-doer1-h" placeholder="0" min="0" /></div>
           </div>
@@ -484,20 +341,7 @@
             <span class="role-row-label">Doer Asignado 2</span>
             <select id="f-doer2">
               <option value="">Sin asignar</option>
-              <option>Azul Cardona</option>
-              <option>María Laura Patiño</option>
-              <option>Daniela Caicedo</option>
-              <option>Laura Gómez</option>
-              <option>Stiben Ibarra</option>
-              <option>Natalia Rodríguez</option>
-              <option>María Alejandra Mariño</option>
-              <option>María Fernanda Martínez</option>
-              <option>Ana Roa</option>
-              <option>Julián Gaitán</option>
-              <option>Santiago Castillo</option>
-              <option>Jhojann Rodríguez</option>
-              <option>Kevin Barbosa</option>
-              <option>María Camila Rueda</option>
+              <option>Azul Cardona</option><option>María Laura Patiño</option><option>Daniela Caicedo</option><option>Laura Gómez</option><option>Stiben Ibarra</option><option>Natalia Rodríguez</option><option>María Alejandra Mariño</option><option>María Fernanda Martínez</option><option>Ana Roa</option><option>Julián Gaitán</option><option>Santiago Castillo</option><option>Jhojann Rodríguez</option><option>Kevin Barbosa</option><option>María Camila Rueda</option>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-doer2-h" placeholder="0" min="0" /></div>
           </div>
@@ -505,29 +349,8 @@
             <span class="role-row-label">Otros Asignados</span>
             <select id="f-otros1">
               <option value="">Sin asignar</option>
-              <optgroup label="Hosts">
-                <option>Angélica Flechas</option>
-                <option>María Camila Venegas</option>
-                <option>María Alejandra Corrales</option>
-                <option>Daniel Pinilla</option>
-                <option>Camilo Niño</option>
-              </optgroup>
-              <optgroup label="Owners / Doers">
-                <option>Azul Cardona</option>
-                <option>María Laura Patiño</option>
-                <option>Daniela Caicedo</option>
-                <option>Laura Gómez</option>
-                <option>Stiben Ibarra</option>
-                <option>Natalia Rodríguez</option>
-                <option>María Alejandra Mariño</option>
-                <option>María Fernanda Martínez</option>
-                <option>Ana Roa</option>
-                <option>Julián Gaitán</option>
-                <option>Santiago Castillo</option>
-                <option>Jhojann Rodríguez</option>
-                <option>Kevin Barbosa</option>
-                <option>María Camila Rueda</option>
-              </optgroup>
+              <optgroup label="Hosts"><option>Angélica Flechas</option><option>María Camila Venegas</option><option>María Alejandra Corrales</option><option>Daniel Pinilla</option><option>Camilo Niño</option></optgroup>
+              <optgroup label="Owners / Doers"><option>Azul Cardona</option><option>María Laura Patiño</option><option>Daniela Caicedo</option><option>Laura Gómez</option><option>Stiben Ibarra</option><option>Natalia Rodríguez</option><option>María Alejandra Mariño</option><option>María Fernanda Martínez</option><option>Ana Roa</option><option>Julián Gaitán</option><option>Santiago Castillo</option><option>Jhojann Rodríguez</option><option>Kevin Barbosa</option><option>María Camila Rueda</option></optgroup>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-otros1-h" placeholder="0" min="0" /></div>
           </div>
@@ -535,29 +358,8 @@
             <span class="role-row-label">Otros Asignados</span>
             <select id="f-otros2">
               <option value="">Sin asignar</option>
-              <optgroup label="Hosts">
-                <option>Angélica Flechas</option>
-                <option>María Camila Venegas</option>
-                <option>María Alejandra Corrales</option>
-                <option>Daniel Pinilla</option>
-                <option>Camilo Niño</option>
-              </optgroup>
-              <optgroup label="Owners / Doers">
-                <option>Azul Cardona</option>
-                <option>María Laura Patiño</option>
-                <option>Daniela Caicedo</option>
-                <option>Laura Gómez</option>
-                <option>Stiben Ibarra</option>
-                <option>Natalia Rodríguez</option>
-                <option>María Alejandra Mariño</option>
-                <option>María Fernanda Martínez</option>
-                <option>Ana Roa</option>
-                <option>Julián Gaitán</option>
-                <option>Santiago Castillo</option>
-                <option>Jhojann Rodríguez</option>
-                <option>Kevin Barbosa</option>
-                <option>María Camila Rueda</option>
-              </optgroup>
+              <optgroup label="Hosts"><option>Angélica Flechas</option><option>María Camila Venegas</option><option>María Alejandra Corrales</option><option>Daniel Pinilla</option><option>Camilo Niño</option></optgroup>
+              <optgroup label="Owners / Doers"><option>Azul Cardona</option><option>María Laura Patiño</option><option>Daniela Caicedo</option><option>Laura Gómez</option><option>Stiben Ibarra</option><option>Natalia Rodríguez</option><option>María Alejandra Mariño</option><option>María Fernanda Martínez</option><option>Ana Roa</option><option>Julián Gaitán</option><option>Santiago Castillo</option><option>Jhojann Rodríguez</option><option>Kevin Barbosa</option><option>María Camila Rueda</option></optgroup>
             </select>
             <div class="horas-input-wrap"><input type="number" id="f-otros2-h" placeholder="0" min="0" /></div>
           </div>
@@ -577,21 +379,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Conocimiento Innovación del Cliente</label>
-            <select id="f-conocimiento">
-              <option value="">Seleccionar...</option>
-              <option value="novato">Novato</option>
-              <option value="conocedor">Conocedor</option>
-              <option value="experto">Experto</option>
-            </select>
+            <select id="f-conocimiento"><option value="">Seleccionar...</option><option value="novato">Novato</option><option value="conocedor">Conocedor</option><option value="experto">Experto</option></select>
           </div>
           <div class="form-group">
             <label>Innovación Metodológica Equipo Háptica</label>
-            <select id="f-innovacion">
-              <option value="">Seleccionar...</option>
-              <option value="bajo">Bajo</option>
-              <option value="medio">Medio</option>
-              <option value="alto">Alto</option>
-            </select>
+            <select id="f-innovacion"><option value="">Seleccionar...</option><option value="bajo">Bajo</option><option value="medio">Medio</option><option value="alto">Alto</option></select>
           </div>
         </div>
 
@@ -602,23 +394,37 @@
       </div>
     </div>
 
-    <!-- ── Actualización Quincenal ── -->
+    <!-- Actualización Quincenal -->
     <div id="subtab-quincenal" class="sub-view">
       <div class="form-card">
         <div class="form-title">Actualización Quincenal</div>
         <div class="form-desc">Registra el estado ISAM del proyecto para el período actual.</div>
 
-        <!-- Selector de proyecto + fecha -->
         <div style="display:flex; gap:14px; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap;">
-          <div class="form-group" style="flex:1; min-width:200px;">
+          <!-- Proyecto con búsqueda -->
+          <div class="form-group" style="flex:1; min-width:220px;">
             <label>Proyecto</label>
+            <div class="search-input-wrap">
+              <input type="text" id="q-search" placeholder="Buscar proyecto..." oninput="filtrarSelectProyectos()" autocomplete="off" />
+            </div>
             <select id="q-proyecto" onchange="onProyectoChange()">
               <option value="">Seleccionar proyecto...</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Fecha de Medición</label>
-            <input type="date" id="q-fecha" />
+          <!-- Semana del mes -->
+          <div class="form-group" style="flex:0 0 auto;">
+            <label>Semana</label>
+            <select id="q-semana" style="min-width:110px;">
+              <option value="1">Semana 1</option>
+              <option value="2">Semana 2</option>
+              <option value="3">Semana 3</option>
+              <option value="4">Semana 4</option>
+              <option value="5">Semana 5</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:0 0 auto;">
+            <label>Mes</label>
+            <select id="q-mes" style="min-width:150px;"></select>
           </div>
         </div>
 
@@ -626,76 +432,50 @@
         <div id="q-horas-section" style="display:none;">
           <div class="sec-label">Estado de Horas</div>
           <div class="hours-display">
-            <div class="hours-chip">
-              <div class="hours-chip-label">Presupuestadas</div>
-              <div class="hours-chip-value" id="q-hp">—</div>
-            </div>
-            <div class="hours-chip">
-              <div class="hours-chip-label">Ejecutadas</div>
-              <div class="hours-chip-value" id="q-he">—</div>
-            </div>
-            <div class="hours-chip">
-              <div class="hours-chip-label">Delta</div>
-              <div class="hours-chip-value" id="q-hd">—</div>
-            </div>
+            <div class="hours-chip"><div class="hours-chip-label">Presupuestadas</div><div class="hours-chip-value" id="q-hp">—</div></div>
+            <div class="hours-chip"><div class="hours-chip-label">Ejecutadas</div><div class="hours-chip-value" id="q-he">—</div></div>
+            <div class="hours-chip"><div class="hours-chip-label">Delta</div><div class="hours-chip-value" id="q-hd">—</div></div>
           </div>
           <div class="form-divider"></div>
         </div>
 
-        <!-- Variables ISAM -->
-        <div class="sec-label">Variables ISAM <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sec);font-size:10px;">— escala 1 (mínimo) a 5 (máximo)</span></div>
+        <!-- Variables ISAM — escala invertida: 5 = excelente, 1 = crítico -->
+        <div class="sec-label">Variables ISAM <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-sec);font-size:10px;">— 5 es el mejor puntaje · 1 es el peor</span></div>
         <div class="isam-vars">
-
           <div class="isam-var">
-            <div class="isam-var-head">
-              <div class="isam-var-name">Fricción con Cliente</div>
-              <div class="isam-var-score" id="sv-friccion">1</div>
-            </div>
-            <div class="isam-var-desc">Mide el desgaste emocional y operativo causado por la cantidad de interlocutores y su nivel de exigencia.</div>
-            <input type="range" id="s-friccion" min="1" max="5" value="1" oninput="onSlider('friccion',this.value)" />
-            <div class="slider-labels"><span>1 · Mínima</span><span>3 · Moderada</span><span>5 · Crítica</span></div>
+            <div class="isam-var-head"><div class="isam-var-name">Fricción con Cliente</div><div class="isam-var-score" id="sv-friccion">5</div></div>
+            <div class="isam-var-desc">Mide el desgaste emocional y operativo con el cliente. A mayor puntaje, menor fricción y mejor salud del proyecto.</div>
+            <input type="range" id="s-friccion" min="1" max="5" value="5" oninput="onSlider('friccion',this.value)" />
+            <div class="slider-labels"><span>1 · Máxima fricción</span><span>3 · Moderada</span><span>5 · Sin fricción</span></div>
           </div>
-
           <div class="isam-var">
-            <div class="isam-var-head">
-              <div class="isam-var-name">Dependencia Crítica del Cliente</div>
-              <div class="isam-var-score" id="sv-dependencia">1</div>
-            </div>
-            <div class="isam-var-desc">Capacidad de ajustar fechas ante contingencias y riesgo de parálisis por inacción del cliente (afecta facturación).</div>
-            <input type="range" id="s-dependencia" min="1" max="5" value="1" oninput="onSlider('dependencia',this.value)" />
-            <div class="slider-labels"><span>1 · Baja</span><span>3 · Media</span><span>5 · Alta</span></div>
+            <div class="isam-var-head"><div class="isam-var-name">Dependencia Crítica del Cliente</div><div class="isam-var-score" id="sv-dependencia">5</div></div>
+            <div class="isam-var-desc">Riesgo de parálisis por inacción del cliente. A mayor puntaje, menor dependencia crítica.</div>
+            <input type="range" id="s-dependencia" min="1" max="5" value="5" oninput="onSlider('dependencia',this.value)" />
+            <div class="slider-labels"><span>1 · Alta depend.</span><span>3 · Media</span><span>5 · Baja depend.</span></div>
           </div>
-
           <div class="isam-var">
-            <div class="isam-var-head">
-              <div class="isam-var-name">Riesgo de Scope Creep</div>
-              <div class="isam-var-score" id="sv-scope">1</div>
-            </div>
-            <div class="isam-var-desc">Probabilidad de ejecutar tareas no presupuestadas sin renegociación, impactando directamente la rentabilidad.</div>
-            <input type="range" id="s-scope" min="1" max="5" value="1" oninput="onSlider('scope',this.value)" />
-            <div class="slider-labels"><span>1 · Bajo</span><span>3 · Moderado</span><span>5 · Alto</span></div>
+            <div class="isam-var-head"><div class="isam-var-name">Riesgo de Scope Creep</div><div class="isam-var-score" id="sv-scope">5</div></div>
+            <div class="isam-var-desc">Probabilidad de ejecutar tareas no presupuestadas. A mayor puntaje, menor riesgo de scope creep.</div>
+            <input type="range" id="s-scope" min="1" max="5" value="5" oninput="onSlider('scope',this.value)" />
+            <div class="slider-labels"><span>1 · Riesgo alto</span><span>3 · Moderado</span><span>5 · Sin riesgo</span></div>
           </div>
-
           <div class="isam-var">
-            <div class="isam-var-head">
-              <div class="isam-var-name">Afectación de Burnout — Owner</div>
-              <div class="isam-var-score" id="sv-burnout">1</div>
-            </div>
-            <div class="isam-var-desc">Mide si el proyecto obliga a trasnochos, trabajo en fines de semana o genera agotamiento mental excesivo.</div>
-            <input type="range" id="s-burnout" min="1" max="5" value="1" oninput="onSlider('burnout',this.value)" />
-            <div class="slider-labels"><span>1 · Sin impacto</span><span>3 · Moderado</span><span>5 · Crítico</span></div>
+            <div class="isam-var-head"><div class="isam-var-name">Afectación de Burnout — Owner</div><div class="isam-var-score" id="sv-burnout">5</div></div>
+            <div class="isam-var-desc">Nivel de agotamiento del Owner. A mayor puntaje, menor afectación de burnout reportada.</div>
+            <input type="range" id="s-burnout" min="1" max="5" value="5" oninput="onSlider('burnout',this.value)" />
+            <div class="slider-labels"><span>1 · Burnout crítico</span><span>3 · Moderado</span><span>5 · Sin impacto</span></div>
           </div>
-
         </div>
 
         <!-- Preview ISAM -->
         <div class="isam-preview-box">
           <div>
             <div class="isam-preview-tag">Promedio ISAM</div>
-            <div class="isam-preview-score" id="isam-preview-val">1.00</div>
+            <div class="isam-preview-score" id="isam-preview-val">5.0</div>
           </div>
           <div id="isam-preview-label" class="isam-preview-label" style="margin-left:4px; border-left:2px solid var(--border); padding-left:16px;">
-            Riesgo bajo — proyecto saludable
+            Proyecto saludable — riesgo bajo
           </div>
         </div>
 
@@ -711,11 +491,27 @@
     </div>
   </div>
 
-  <!-- ═══ DASHBOARD ═════════════════════════════════════════════════ -->
+  <!-- ═══ DASHBOARD ═══════════════════════════════════════════════════════ -->
   <div id="view-dashboard" class="view">
 
-    <!-- Summary row -->
-    <div class="summary-grid">
+    <!-- Tabs activos / cerrados -->
+    <div class="sub-tabs" id="dash-tabs">
+      <button class="sub-tab active" onclick="showDashTab('activos', this)">Proyectos Activos</button>
+      <button class="sub-tab"        onclick="showDashTab('cerrados', this)">Cerrados</button>
+    </div>
+
+    <!-- Filtros (solo para activos) -->
+    <div class="filter-bar" id="dash-filters">
+      <div class="search-wrap">
+        <input type="text" id="f-nombre-dash" placeholder="Buscar proyecto..." oninput="renderDashboard()" />
+      </div>
+      <select id="f-host-dash" onchange="renderDashboard()">
+        <option value="">Todos los Hosts</option>
+      </select>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-grid" id="dash-summary">
       <div class="sum-card">
         <div class="sum-label">Proyectos Activos</div>
         <div class="sum-value" id="d-total">—</div>
@@ -723,29 +519,26 @@
       </div>
       <div class="sum-card">
         <div class="sum-label">ISAM Promedio</div>
-        <div class="sum-value accent" id="d-isam-avg">—</div>
-        <div class="sum-sub" id="d-isam-label">último período</div>
+        <div class="sum-value" id="d-isam-avg">—</div>
+        <div class="sum-sub">último período</div>
       </div>
       <div class="sum-card">
         <div class="sum-label">En Alerta</div>
         <div class="sum-value v-red" id="d-alertas">—</div>
-        <div class="sum-sub">ISAM ≥ 3.5</div>
+        <div class="sum-sub">ISAM &lt; 2.5</div>
       </div>
     </div>
 
-    <!-- Project cards -->
+    <!-- Cards -->
     <div id="project-cards" class="project-cards">
-      <div class="empty">
-        <div class="empty-icon">◎</div>
-        <div class="empty-text">Cargando proyectos...</div>
-      </div>
+      <div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Cargando proyectos...</div></div>
     </div>
   </div>
 
 </main>
 
 <script>
-// ─── FIREBASE INIT ────────────────────────────────────────────────────────────
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
 var firebaseConfig = {
   apiKey:            "AIzaSyDaUsqwy698_enTxe7dM-Ny-mUhLkeQ3sA",
   authDomain:        "haptica-isam.firebaseapp.com",
@@ -762,94 +555,75 @@ var proyectos      = [];
 var mediciones     = [];
 var horasEjec      = {};
 var chartInstances = {};
+var dashView       = 'activos'; // 'activos' | 'cerrados'
 
 var IS_GAS      = (typeof google !== 'undefined') && google.script;
-var IS_FIREBASE = !IS_GAS; // siempre Firebase si no está en GAS
+var IS_FIREBASE = !IS_GAS;
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('q-fecha').valueAsDate = new Date();
+  poblarMeses();
+  document.getElementById('q-semana').value = currentWeekOfMonth();
   initSliders();
-
-  if (IS_GAS) {
-    cargarTodo();
-  } else {
-    cargarFirebase();
-  }
+  if (IS_GAS) { cargarTodo(); } else { cargarFirebase(); }
 });
 
-// ─── FIREBASE: CARGA CON LISTENERS EN TIEMPO REAL ────────────────────────────
-var _fbReady     = false;
-var _seeded      = false;
-var _medsLoaded  = false;
-var _projLoaded  = false;
+// ─── FIREBASE LISTENERS ───────────────────────────────────────────────────────
+var _seeded     = false;
+var _projLoaded = false;
+var _medsLoaded = false;
 
 function cargarFirebase() {
   showLoading(true);
   setLoadingText('Conectando con Firebase...');
 
-  // ── Listener: proyectos ──
-  db.collection('proyectos')
-    .orderBy('nombre')
-    .onSnapshot(function(snap) {
-      proyectos = snap.docs.map(function(d) { return d.data(); });
+  db.collection('proyectos').orderBy('nombre').onSnapshot(function(snap) {
+    proyectos = snap.docs.map(function(d) { return d.data(); });
+    if (proyectos.length === 0 && !_seeded) {
+      _seeded = true;
+      setLoadingText('Cargando proyectos iniciales...');
+      seedDemoData(); return;
+    }
+    _projLoaded = true;
+    setSyncOn(true);
+    poblarFiltroHost();
+    if (_medsLoaded) { afterLoad(); showLoading(false); }
+  }, function(err) {
+    setSyncOn(false);
+    toast('Error Firebase: ' + err.message, 'error');
+    showLoading(false);
+  });
 
-      // Si Firestore está vacío → seed de los proyectos demo
-      if (proyectos.length === 0 && !_seeded) {
-        _seeded = true;
-        setLoadingText('Cargando proyectos iniciales...');
-        seedDemoData();
-        return;
-      }
-
-      _projLoaded = true;
-      setSyncOn(true);
-      if (_medsLoaded || !_fbReady) { _fbReady = true; afterLoad(); showLoading(false); }
-    }, function(err) {
-      setSyncOn(false);
-      toast('Error Firebase: ' + err.message + ' — Revisa las reglas de Firestore', 'error');
-      showLoading(false);
-    });
-
-  // ── Listener: mediciones ──
-  db.collection('mediciones')
-    .orderBy('fecha')
-    .onSnapshot(function(snap) {
-      mediciones = snap.docs.map(function(d) { return d.data(); });
-      _medsLoaded = true;
-      if (_projLoaded) { _fbReady = true; afterLoad(); showLoading(false); }
-    }, function(err) {
-      console.warn('Mediciones listener:', err.message);
-      _medsLoaded = true;
-    });
+  db.collection('mediciones').orderBy('fecha').onSnapshot(function(snap) {
+    mediciones = snap.docs.map(function(d) { return d.data(); });
+    _medsLoaded = true;
+    if (_projLoaded) { afterLoad(); showLoading(false); }
+  }, function(err) {
+    console.warn('Mediciones listener:', err.message);
+    _medsLoaded = true;
+  });
 }
 
 function seedDemoData() {
   var batch = db.batch();
   DEMO_PROJECTS.forEach(function(p) {
-    var docId = p.nombre.replace(/[^a-zA-Z0-9]/g, '_');
-    batch.set(db.collection('proyectos').doc(docId), p);
+    batch.set(db.collection('proyectos').doc(p.nombre.replace(/[^a-zA-Z0-9]/g,'_')), p);
   });
   batch.commit()
     .then(function() { toast('12 proyectos cargados en Firebase ✓', 'success'); })
     .catch(function(err) {
-      toast('No se pudo escribir en Firestore. Revisa las reglas de seguridad.', 'error');
-      // Fallback: usar datos en memoria
-      proyectos = DEMO_PROJECTS.slice();
-      _projLoaded = true;
-      _fbReady    = true;
-      afterLoad();
-      showLoading(false);
+      toast('Error al cargar demo: ' + err.message, 'error');
+      proyectos = DEMO_PROJECTS.slice(); _projLoaded = true;
+      afterLoad(); showLoading(false);
     });
 }
 
 function setSyncOn(on) {
-  var dot = document.getElementById('syncDot');
-  if (on) { dot.classList.remove('off'); dot.title = 'Sincronizado con Firebase'; }
-  else     { dot.classList.add('off');    dot.title = 'Sin conexión Firebase'; }
+  var d = document.getElementById('syncDot');
+  on ? d.classList.remove('off') : d.classList.add('off');
 }
 
-// ─── GAS LOAD ─────────────────────────────────────────────────────────────────
+// ─── GAS ──────────────────────────────────────────────────────────────────────
 function cargarTodo() {
   showLoading(true);
   google.script.run
@@ -857,18 +631,15 @@ function cargarTodo() {
       proyectos  = data.proyectos       || [];
       mediciones = data.mediciones      || [];
       horasEjec  = data.horasEjecutadas || {};
-      afterLoad();
-      showLoading(false);
+      afterLoad(); showLoading(false);
     })
-    .withFailureHandler(function(err) {
-      toast('Error al cargar: ' + err.message, 'error');
-      showLoading(false);
-    })
+    .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
     .getAll();
 }
 
 function afterLoad() {
   poblarSelectProyectos();
+  poblarFiltroHost();
   renderDashboard();
 }
 
@@ -888,46 +659,93 @@ function showSubTab(tab, btn) {
   btn.classList.add('active');
 }
 
+function showDashTab(tab, btn) {
+  dashView = tab;
+  document.querySelectorAll('#dash-tabs .sub-tab').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  var filters  = document.getElementById('dash-filters');
+  var summary  = document.getElementById('dash-summary');
+  filters.style.display = tab === 'activos' ? 'flex' : 'none';
+  summary.style.display = tab === 'activos' ? 'grid' : 'none';
+  renderDashboard();
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  var activos = proyectos.filter(function(p) { return p.estado === 'activo'; });
+  var search     = (document.getElementById('f-nombre-dash') || {value:''}).value.toLowerCase();
+  var hostFilter = (document.getElementById('f-host-dash')   || {value:''}).value;
 
-  document.getElementById('d-total').textContent = activos.length || '0';
+  var lista = proyectos.filter(function(p) {
+    if (dashView === 'activos')  return p.estado === 'activo';
+    if (dashView === 'cerrados') return p.estado === 'cerrado';
+    return false;
+  });
 
-  var scores  = activos.map(function(p) { return ultimoISAM(p.nombre); }).filter(function(s) { return s !== null; });
-  var avg     = scores.length ? (scores.reduce(function(a,b) { return a+b; }, 0) / scores.length) : null;
-  document.getElementById('d-isam-avg').textContent = avg ? avg.toFixed(2) : '—';
+  if (dashView === 'activos') {
+    if (search)     lista = lista.filter(function(p){ return p.nombre.toLowerCase().includes(search); });
+    if (hostFilter) lista = lista.filter(function(p){ return p.host === hostFilter; });
+  }
 
-  var alertas = scores.filter(function(s) { return s >= 3.5; }).length;
-  var alertEl = document.getElementById('d-alertas');
-  alertEl.textContent = alertas;
-  alertEl.className   = 'sum-value ' + (alertas > 0 ? 'v-red' : '');
+  // Summary (solo activos)
+  if (dashView === 'activos') {
+    var activos = proyectos.filter(function(p){ return p.estado === 'activo'; });
+    document.getElementById('d-total').textContent = activos.length || '0';
+
+    var scores = activos.map(function(p){ return ultimoISAM(p.nombre); }).filter(function(s){ return s !== null; });
+    var avg    = scores.length ? (scores.reduce(function(a,b){ return a+b; }, 0) / scores.length) : null;
+    var avgEl  = document.getElementById('d-isam-avg');
+    avgEl.textContent = avg !== null ? avg.toFixed(1) : '—';
+    avgEl.className   = 'sum-value ' + (avg === null ? '' : avg >= 3.5 ? 'v-green' : avg >= 2.5 ? 'v-yellow' : 'v-red');
+
+    var alertas = scores.filter(function(s){ return s < 2.5; }).length;
+    document.getElementById('d-alertas').textContent = alertas;
+  }
 
   var container = document.getElementById('project-cards');
-  if (activos.length === 0) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">No hay proyectos activos</div><div class="empty-sub">Ve a Registro → Nuevo Proyecto para comenzar</div></div>';
+  if (lista.length === 0) {
+    var msg = dashView === 'cerrados'
+      ? 'No hay proyectos cerrados'
+      : 'No hay proyectos activos que coincidan';
+    container.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">' + msg + '</div></div>';
     return;
   }
 
   container.innerHTML = '';
-  activos.forEach(function(p) { container.appendChild(buildCard(p)); });
-  setTimeout(function() { activos.forEach(function(p) { initChart(p.nombre); }); }, 60);
+  lista.forEach(function(p) { container.appendChild(buildCard(p)); });
+  setTimeout(function() { lista.forEach(function(p) { initChart(p.nombre); }); }, 60);
 }
 
-function buildCard(p) {
-  var meds    = medsFor(p.nombre);
-  var last    = meds.length ? meds[meds.length-1].promedio : null;
-  var ejec    = horasEjec[p.nombre] || 0;
-  var pres    = parseFloat(p.horasPresupuestadas) || 0;
-  var delta   = pres - ejec;
-  var pct     = pres > 0 ? Math.min((ejec / pres) * 100, 100) : 0;
+function poblarFiltroHost() {
+  var sel = document.getElementById('f-host-dash');
+  if (!sel) return;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">Todos los Hosts</option>';
+  var hosts = [];
+  proyectos.forEach(function(p) { if (p.host && hosts.indexOf(p.host) === -1) hosts.push(p.host); });
+  hosts.sort().forEach(function(h) {
+    var opt = document.createElement('option');
+    opt.value = h; opt.textContent = h;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
 
-  var ibClass  = last === null ? 'ib-empty' : (last < 2.5 ? 'ib-green' : (last < 3.5 ? 'ib-yellow' : 'ib-red'));
+// ─── BUILD CARD ───────────────────────────────────────────────────────────────
+function buildCard(p) {
+  var meds  = medsFor(p.nombre);
+  var last  = meds.length ? meds[meds.length-1].promedio : null;
+  var ejec  = horasEjec[p.nombre] || 0;
+  var pres  = parseFloat(p.horasPresupuestadas) || 0;
+  var delta = pres - ejec;
+  var pct   = pres > 0 ? Math.min((ejec / pres) * 100, 100) : 0;
+
+  // ISAM invertido: mayor = mejor → verde
+  var ibClass  = last === null ? 'ib-empty' : (last >= 3.5 ? 'ib-green' : (last >= 2.5 ? 'ib-yellow' : 'ib-red'));
   var badgeTxt = last !== null ? last.toFixed(1) : '—';
 
   var alertBadge = '';
-  if      (last !== null && last >= 3.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
-  else if (last !== null && last >= 2.5) alertBadge = '<span class="p-badge yellow">Monitorear</span>';
+  if      (last !== null && last < 2.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
+  else if (last !== null && last < 3.5) alertBadge = '<span class="p-badge yellow">Monitorear</span>';
 
   var teamBadges = [
     p.host  ? '<span class="p-badge info">Host: '+esc(p.host)+'</span>'   : '',
@@ -936,11 +754,11 @@ function buildCard(p) {
   ].filter(Boolean).join('');
 
   var medsRows = meds.map(function(m) {
-    return '<tr><td>'+fechaCorta(m.fecha)+'</td><td>'+sp(m.friccion)+'</td><td>'+sp(m.dependencia)+'</td><td>'+sp(m.scopeCreep)+'</td><td>'+sp(m.burnout)+'</td><td>'+isamSp(m.promedio)+'</td>'+(m.notas?'<td style="font-size:11px;color:var(--text-sec)">'+esc(m.notas)+'</td>':'<td></td>')+'</tr>';
+    return '<tr><td>'+semanaCorta(m.fecha)+'</td><td>'+sp(m.friccion)+'</td><td>'+sp(m.dependencia)+'</td><td>'+sp(m.scopeCreep)+'</td><td>'+sp(m.burnout)+'</td><td>'+isamSp(m.promedio)+'</td>'+(m.notas?'<td style="font-size:11px;color:var(--text-sec)">'+esc(m.notas)+'</td>':'<td></td>')+'</tr>';
   }).join('');
 
   var medsSection = meds.length
-    ? '<table class="meds-table"><thead><tr><th>Fecha</th><th>Fricción</th><th>Depend.</th><th>Scope</th><th>Burnout</th><th>ISAM</th><th>Notas</th></tr></thead><tbody>'+medsRows+'</tbody></table>'
+    ? '<table class="meds-table"><thead><tr><th>Período</th><th>Fricción</th><th>Depend.</th><th>Scope</th><th>Burnout</th><th>ISAM</th><th>Notas</th></tr></thead><tbody>'+medsRows+'</tbody></table>'
     : '<div class="no-meds">Sin mediciones aún — registra la primera actualización quincenal</div>';
 
   var barClass = ejec <= pres ? 'under' : 'over';
@@ -958,8 +776,13 @@ function buildCard(p) {
      return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hLabel+'</span></div>';
    }).join('');
 
+  var isCerrado  = p.estado === 'cerrado';
+  var toggleBtn  = isCerrado
+    ? '<button class="btn-toggle-estado reactivar" onclick="toggleEstado(event,\''+esc(p.nombre)+'\',\'activo\')" title="Reactivar proyecto">↺ Reactivar</button>'
+    : '<button class="btn-toggle-estado" onclick="toggleEstado(event,\''+esc(p.nombre)+'\',\'cerrado\')" title="Cerrar proyecto">✕ Cerrar</button>';
+
   var div = document.createElement('div');
-  div.className = 'proj-card';
+  div.className = 'proj-card' + (isCerrado ? ' cerrado' : '');
   div.innerHTML =
     '<div class="proj-head" onclick="toggleCard(this.parentElement)">'
       +'<div class="isam-badge '+ibClass+'">'+badgeTxt+'</div>'
@@ -971,6 +794,7 @@ function buildCard(p) {
         +'<div class="proj-hours-main">'+Math.round(ejec)+'h / '+Math.round(pres)+'h</div>'
         +'<div class="proj-hours-delta '+(delta>=0?'delta-pos':'delta-neg')+'">'+(delta>=0?'+':'')+Math.round(delta)+'h delta</div>'
       +'</div>'
+      +toggleBtn
       +'<div class="proj-chevron">▾</div>'
     +'</div>'
     +'<div class="proj-body">'
@@ -981,10 +805,7 @@ function buildCard(p) {
           +medsSection
         +'</div>'
         +'<div class="side-info">'
-          +'<div class="info-block">'
-            +'<div class="info-block-title">Equipo</div>'
-            +equipo
-          +'</div>'
+          +'<div class="info-block"><div class="info-block-title">Equipo</div>'+equipo+'</div>'
           +'<div class="info-block">'
             +'<div class="info-block-title">Horas</div>'
             +'<div class="info-row"><span class="info-row-l">Presupuestadas</span><span class="info-row-v">'+Math.round(pres)+'h</span></div>'
@@ -1001,7 +822,7 @@ function buildCard(p) {
               +'<span class="info-row-l">Cierre proyectado</span>'
               +'<div class="fecha-proy-display" id="fpdisp-'+safeId(p.nombre)+'">'
                 +'<span class="fecha-proy-val'+(p.fechaProyectada?'':' empty')+'" id="fpval-'+safeId(p.nombre)+'">'+(p.fechaProyectada?fechaCorta(p.fechaProyectada):'Sin definir')+'</span>'
-                +'<button class="btn-edit-fecha" onclick="editFechaProyectada(\''+safeId(p.nombre)+'\')" title="Editar fecha proyectada">✏</button>'
+                +'<button class="btn-edit-fecha" onclick="editFechaProyectada(\''+safeId(p.nombre)+'\')" title="Editar">✏</button>'
               +'</div>'
               +'<div class="fecha-proy-edit" id="fpedit-'+safeId(p.nombre)+'">'
                 +'<input type="date" id="fpinput-'+safeId(p.nombre)+'" value="'+(p.fechaProyectada||'')+'" />'
@@ -1023,31 +844,41 @@ function buildCard(p) {
   return div;
 }
 
+// ─── TOGGLE ESTADO ────────────────────────────────────────────────────────────
+function toggleEstado(event, nombre, nuevoEstado) {
+  event.stopPropagation();
+  if (nuevoEstado === 'cerrado') {
+    if (!confirm('¿Cerrar "' + nombre + '"?\nPodrás reactivarlo desde la pestaña Cerrados.')) return;
+  }
+  if (IS_FIREBASE) {
+    db.collection('proyectos').doc(nombre.replace(/[^a-zA-Z0-9]/g,'_'))
+      .update({ estado: nuevoEstado })
+      .then(function() { toast(nuevoEstado === 'cerrado' ? 'Proyecto cerrado ✓' : 'Proyecto reactivado ✓', 'success'); })
+      .catch(function(err) { toast('Error: ' + err.message, 'error'); });
+  } else {
+    var p = proyectos.find(function(x){ return x.nombre === nombre; });
+    if (p) { p.estado = nuevoEstado; renderDashboard(); toast(nuevoEstado === 'cerrado' ? 'Proyecto cerrado' : 'Proyecto reactivado', 'success'); }
+  }
+}
+
+// ─── CHART ────────────────────────────────────────────────────────────────────
 function initChart(nombre) {
   var meds   = medsFor(nombre);
-  var cid    = 'chart-' + safeId(nombre);
-  var canvas = document.getElementById(cid);
+  var canvas = document.getElementById('chart-' + safeId(nombre));
   if (!canvas) return;
-
   if (chartInstances[nombre]) { chartInstances[nombre].destroy(); delete chartInstances[nombre]; }
   if (meds.length === 0) return;
 
   chartInstances[nombre] = new Chart(canvas, {
     type: 'line',
     data: {
-      labels: meds.map(function(m){ return fechaCorta(m.fecha, true); }),
+      labels: meds.map(function(m){ return semanaCorta(m.fecha, true); }),
       datasets: [
-        {
-          label: 'ISAM',
-          data: meds.map(function(m){ return m.promedio; }),
-          borderColor: '#F05028', backgroundColor: 'rgba(240,80,40,0.07)',
-          borderWidth: 2.5, pointRadius: 5, tension: 0.3, fill: true,
-          pointBackgroundColor: meds.map(function(m){ return scoreColor(m.promedio); })
-        },
-        { label: 'Fricción',  data: meds.map(function(m){ return m.friccion; }),    borderColor: 'rgba(107,170,117,0.65)', borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Depend.',   data: meds.map(function(m){ return m.dependencia; }), borderColor: 'rgba(244,162,97,0.65)',  borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Scope',     data: meds.map(function(m){ return m.scopeCreep; }),  borderColor: 'rgba(28,61,58,0.4)',     borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
-        { label: 'Burnout',   data: meds.map(function(m){ return m.burnout; }),     borderColor: 'rgba(224,92,75,0.55)',   borderWidth:1.5, pointRadius:3, tension:0.3, fill:false }
+        { label:'ISAM', data: meds.map(function(m){ return m.promedio; }), borderColor:'#F05028', backgroundColor:'rgba(240,80,40,0.07)', borderWidth:2.5, pointRadius:5, tension:0.3, fill:true, pointBackgroundColor: meds.map(function(m){ return scoreColor(m.promedio); }) },
+        { label:'Fricción',  data: meds.map(function(m){ return m.friccion; }),    borderColor:'rgba(107,170,117,0.65)', borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label:'Depend.',   data: meds.map(function(m){ return m.dependencia; }), borderColor:'rgba(244,162,97,0.65)',  borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label:'Scope',     data: meds.map(function(m){ return m.scopeCreep; }),  borderColor:'rgba(28,61,58,0.4)',     borderWidth:1.5, pointRadius:3, tension:0.3, fill:false },
+        { label:'Burnout',   data: meds.map(function(m){ return m.burnout; }),     borderColor:'rgba(224,92,75,0.55)',   borderWidth:1.5, pointRadius:3, tension:0.3, fill:false }
       ]
     },
     options: {
@@ -1058,7 +889,7 @@ function initChart(nombre) {
       },
       plugins: {
         legend: { position:'bottom', labels:{ font:{size:10}, padding:10, boxWidth:10, color:'#5A6B6A' } },
-        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2); } } }
+        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label+': '+ctx.parsed.y.toFixed(1); } } }
       }
     }
   });
@@ -1067,93 +898,68 @@ function initChart(nombre) {
 function toggleCard(card) {
   var wasOpen = card.classList.contains('open');
   card.classList.toggle('open');
-  if (!wasOpen) {
-    var nombre = card.querySelector('.proj-name').textContent;
-    setTimeout(function(){ initChart(nombre); }, 60);
-  }
+  if (!wasOpen) { setTimeout(function(){ initChart(card.querySelector('.proj-name').textContent); }, 60); }
 }
 
 // ─── FORM: NUEVO PROYECTO ─────────────────────────────────────────────────────
 function guardarProyecto() {
   var nombre = document.getElementById('f-nombre').value.trim();
   if (!nombre) { toast('El nombre del proyecto es obligatorio', 'error'); return; }
-  if (proyectos.find(function(p){ return p.nombre.toLowerCase()===nombre.toLowerCase(); })) {
-    toast('Ya existe un proyecto con ese nombre', 'error'); return;
-  }
+  if (proyectos.find(function(p){ return p.nombre.toLowerCase()===nombre.toLowerCase(); })) { toast('Ya existe un proyecto con ese nombre','error'); return; }
 
-  var hHost   = parseFloat(document.getElementById('f-host-h').value)   || 0;
-  var hOwner  = parseFloat(document.getElementById('f-owner-h').value)  || 0;
-  var hDoer1  = parseFloat(document.getElementById('f-doer1-h').value)  || 0;
-  var hDoer2  = parseFloat(document.getElementById('f-doer2-h').value)  || 0;
-  var hOtros1 = parseFloat(document.getElementById('f-otros1-h').value) || 0;
-  var hOtros2 = parseFloat(document.getElementById('f-otros2-h').value) || 0;
+  var hHost=parseFloat(document.getElementById('f-host-h').value)||0, hOwner=parseFloat(document.getElementById('f-owner-h').value)||0,
+      hDoer1=parseFloat(document.getElementById('f-doer1-h').value)||0, hDoer2=parseFloat(document.getElementById('f-doer2-h').value)||0,
+      hOtros1=parseFloat(document.getElementById('f-otros1-h').value)||0, hOtros2=parseFloat(document.getElementById('f-otros2-h').value)||0;
 
   var data = {
-    nombre:                nombre,
-    host:                  v('f-host'),    hostHoras:   hHost,
-    owner:                 v('f-owner'),   ownerHoras:  hOwner,
-    doer1:                 v('f-doer1'),   doer1Horas:  hDoer1,
-    doer2:                 v('f-doer2'),   doer2Horas:  hDoer2,
-    otros1:                v('f-otros1'),  otros1Horas: hOtros1,
-    otros2:                v('f-otros2'),  otros2Horas: hOtros2,
-    horasPresupuestadas:   hHost + hOwner + hDoer1 + hDoer2 + hOtros1 + hOtros2,
-    fechaInicio:           v('f-inicio'),
-    fechaCierre:           v('f-cierre'),
-    fechaProyectada:       '',
-    semanasPresupuestadas: parseInt(v('f-semanas')) || 0,
-    semanasProyectadas:    0,
-    conocimientoCliente:   v('f-conocimiento'),
-    innovacionEquipo:      v('f-innovacion'),
-    estado:                'activo'
+    nombre: nombre, host: v('f-host'), hostHoras: hHost, owner: v('f-owner'), ownerHoras: hOwner,
+    doer1: v('f-doer1'), doer1Horas: hDoer1, doer2: v('f-doer2'), doer2Horas: hDoer2,
+    otros1: v('f-otros1'), otros1Horas: hOtros1, otros2: v('f-otros2'), otros2Horas: hOtros2,
+    horasPresupuestadas: hHost+hOwner+hDoer1+hDoer2+hOtros1+hOtros2,
+    fechaInicio: v('f-inicio'), fechaCierre: v('f-cierre'), fechaProyectada: '',
+    semanasPresupuestadas: parseInt(v('f-semanas'))||0, semanasProyectadas: 0,
+    conocimientoCliente: v('f-conocimiento'), innovacionEquipo: v('f-innovacion'), estado: 'activo'
   };
 
   if (IS_GAS) {
     showLoading(true);
-    google.script.run
-      .withSuccessHandler(function() { proyectos.push(data); afterSaveProyecto(); showLoading(false); })
-      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
-      .saveProyecto(data);
-
+    google.script.run.withSuccessHandler(function(){ proyectos.push(data); afterSaveProyecto(); showLoading(false); }).withFailureHandler(function(err){ toast('Error: '+err.message,'error'); showLoading(false); }).saveProyecto(data);
   } else if (IS_FIREBASE) {
     showLoading(true);
-    var docId = nombre.replace(/[^a-zA-Z0-9]/g, '_');
-    db.collection('proyectos').doc(docId).set(data)
-      .then(function() { limpiarFormProyecto(); toast('Proyecto guardado en Firebase ✓', 'success'); showLoading(false); })
-      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); showLoading(false); });
-
-  } else {
-    proyectos.push(data);
-    afterSaveProyecto();
-  }
+    db.collection('proyectos').doc(nombre.replace(/[^a-zA-Z0-9]/g,'_')).set(data)
+      .then(function(){ limpiarFormProyecto(); toast('Proyecto guardado en Firebase ✓','success'); showLoading(false); })
+      .catch(function(err){ toast('Error Firebase: '+err.message,'error'); showLoading(false); });
+  } else { proyectos.push(data); afterSaveProyecto(); }
 }
 
-function afterSaveProyecto() {
-  limpiarFormProyecto();
-  poblarSelectProyectos();
-  toast('Proyecto guardado correctamente', 'success');
-}
+function afterSaveProyecto() { limpiarFormProyecto(); poblarSelectProyectos(); toast('Proyecto guardado','success'); }
 
 function limpiarFormProyecto() {
-  document.getElementById('f-nombre').value = '';
-  ['f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-nombre','f-semanas','f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2','f-conocimiento','f-innovacion'].forEach(function(id){ document.getElementById(id).value=''; });
   ['f-host-h','f-owner-h','f-doer1-h','f-doer2-h','f-otros1-h','f-otros2-h'].forEach(function(id){ document.getElementById(id).value=''; });
-  document.getElementById('f-semanas').value = '';
-  document.getElementById('f-inicio').value  = '';
-  document.getElementById('f-cierre').value  = '';
-  document.getElementById('f-conocimiento').value = '';
-  document.getElementById('f-innovacion').value   = '';
 }
 
 // ─── FORM: QUINCENAL ──────────────────────────────────────────────────────────
 function poblarSelectProyectos() {
-  var sel = document.getElementById('q-proyecto');
-  var cur = sel.value;
+  document.getElementById('q-search').value = '';
+  filtrarSelectProyectos();
+}
+
+function filtrarSelectProyectos() {
+  var query = document.getElementById('q-search').value.toLowerCase();
+  var sel   = document.getElementById('q-proyecto');
+  var cur   = sel.value;
   sel.innerHTML = '<option value="">Seleccionar proyecto...</option>';
-  proyectos.filter(function(p){ return p.estado==='activo'; }).forEach(function(p) {
-    var opt = document.createElement('option');
-    opt.value = p.nombre; opt.textContent = p.nombre;
-    sel.appendChild(opt);
-  });
+  proyectos
+    .filter(function(p){ return p.estado === 'activo'; })
+    .filter(function(p){ return !query || p.nombre.toLowerCase().includes(query); })
+    .sort(function(a,b){ return a.nombre.localeCompare(b.nombre); })
+    .forEach(function(p){
+      var opt = document.createElement('option');
+      opt.value = p.nombre; opt.textContent = p.nombre;
+      sel.appendChild(opt);
+    });
   if (cur) sel.value = cur;
 }
 
@@ -1161,228 +967,197 @@ function onProyectoChange() {
   var nombre  = document.getElementById('q-proyecto').value;
   var section = document.getElementById('q-horas-section');
   if (!nombre) { section.style.display='none'; return; }
-
-  var p    = proyectos.find(function(x){ return x.nombre===nombre; });
+  var p = proyectos.find(function(x){ return x.nombre===nombre; });
   if (!p) return;
-
-  var ejec  = horasEjec[nombre] || 0;
-  var pres  = parseFloat(p.horasPresupuestadas) || 0;
-  var delta = pres - ejec;
-
-  document.getElementById('q-hp').textContent = Math.round(pres) + 'h';
-  document.getElementById('q-he').textContent = Math.round(ejec) + 'h';
-
+  var ejec=horasEjec[nombre]||0, pres=parseFloat(p.horasPresupuestadas)||0, delta=pres-ejec;
+  document.getElementById('q-hp').textContent = Math.round(pres)+'h';
+  document.getElementById('q-he').textContent = Math.round(ejec)+'h';
   var hd = document.getElementById('q-hd');
-  hd.textContent = (delta>=0?'+':'') + Math.round(delta) + 'h';
-  hd.className   = 'hours-chip-value ' + (delta>=0?'pos':'neg');
-
+  hd.textContent = (delta>=0?'+':'')+Math.round(delta)+'h';
+  hd.className   = 'hours-chip-value '+(delta>=0?'pos':'neg');
   section.style.display = 'block';
 }
 
 function guardarMedicion() {
   var proyecto = document.getElementById('q-proyecto').value;
-  var fecha    = document.getElementById('q-fecha').value;
-  if (!proyecto) { toast('Selecciona un proyecto', 'error'); return; }
-  if (!fecha)    { toast('Selecciona una fecha',    'error'); return; }
+  if (!proyecto) { toast('Selecciona un proyecto','error'); return; }
 
-  var fri  = parseInt(document.getElementById('s-friccion').value);
-  var dep  = parseInt(document.getElementById('s-dependencia').value);
-  var sco  = parseInt(document.getElementById('s-scope').value);
-  var bur  = parseInt(document.getElementById('s-burnout').value);
-  var prom = parseFloat(((fri+dep+sco+bur)/4).toFixed(2));
+  var semana = document.getElementById('q-semana').value;
+  var mes    = document.getElementById('q-mes').value;
+  var fecha  = mes + '-W' + semana;
 
-  var data = {
-    proyecto: proyecto, fecha: fecha,
-    friccion: fri, dependencia: dep, scopeCreep: sco, burnout: bur,
-    promedio: prom, notas: document.getElementById('q-notas').value.trim()
-  };
+  var fri=parseInt(document.getElementById('s-friccion').value);
+  var dep=parseInt(document.getElementById('s-dependencia').value);
+  var sco=parseInt(document.getElementById('s-scope').value);
+  var bur=parseInt(document.getElementById('s-burnout').value);
+  var prom=parseFloat(((fri+dep+sco+bur)/4).toFixed(1));
+
+  var data = { proyecto: proyecto, fecha: fecha, friccion: fri, dependencia: dep, scopeCreep: sco, burnout: bur, promedio: prom, notas: document.getElementById('q-notas').value.trim() };
 
   if (IS_GAS) {
     showLoading(true);
-    google.script.run
-      .withSuccessHandler(function() { mediciones.push(data); afterSaveMedicion(prom); showLoading(false); })
-      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
-      .saveMedicion(data);
-
+    google.script.run.withSuccessHandler(function(){ mediciones.push(data); afterSaveMedicion(prom); showLoading(false); }).withFailureHandler(function(err){ toast('Error: '+err.message,'error'); showLoading(false); }).saveMedicion(data);
   } else if (IS_FIREBASE) {
     showLoading(true);
     db.collection('mediciones').add(data)
-      .then(function() { afterSaveMedicion(prom); showLoading(false); })
-      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); showLoading(false); });
-
-  } else {
-    mediciones.push(data);
-    afterSaveMedicion(prom);
-  }
+      .then(function(){ afterSaveMedicion(prom); showLoading(false); })
+      .catch(function(err){ toast('Error Firebase: '+err.message,'error'); showLoading(false); });
+  } else { mediciones.push(data); afterSaveMedicion(prom); }
 }
 
 function afterSaveMedicion(prom) {
   resetSliders();
   document.getElementById('q-notas').value = '';
-  toast('Medición guardada · ISAM ' + prom.toFixed(2), 'success');
+  toast('Medición guardada · ISAM ' + prom.toFixed(1), 'success');
 }
 
-// ─── SLIDERS ──────────────────────────────────────────────────────────────────
+// ─── WEEK HELPERS ─────────────────────────────────────────────────────────────
+var MESES_LARGO  = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+var MESES_CORTO  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+function currentWeekOfMonth() {
+  return Math.min(Math.ceil(new Date().getDate() / 7), 5);
+}
+
+function poblarMeses() {
+  var sel   = document.getElementById('q-mes');
+  var today = new Date();
+  sel.innerHTML = '';
+  for (var i = -5; i <= 1; i++) {
+    var d   = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    var val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    var lbl = MESES_LARGO[d.getMonth()] + ' ' + d.getFullYear();
+    var opt = document.createElement('option');
+    opt.value = val; opt.textContent = lbl;
+    if (i === 0) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+// Muestra "Sem 2 · may" o "Sem 2 · mayo 2026"
+function semanaCorta(f, veryShort) {
+  if (!f) return '—';
+  if (f.includes('-W')) {
+    var parts = f.split('-'); // ["2026","05","W2"]
+    var mon = parseInt(parts[1]) - 1;
+    var wk  = parts[2]; // "W2"
+    var yr  = parts[0];
+    return veryShort ? wk + ' · ' + MESES_CORTO[mon] : wk.replace('W','Sem ') + ' · ' + MESES_LARGO[mon] + ' ' + yr;
+  }
+  return fechaCorta(f, veryShort);
+}
+
+// ─── SLIDERS (escala invertida: 5=verde, 1=rojo) ─────────────────────────────
 var SLIDER_IDS = ['friccion','dependencia','scope','burnout'];
 
 function initSliders() {
-  SLIDER_IDS.forEach(function(id){ onSlider(id, 1); });
+  SLIDER_IDS.forEach(function(id){ onSlider(id, 5); });
   updatePreview();
 }
 
 function onSlider(id, val) {
   val = parseInt(val);
   document.getElementById('sv-' + id).textContent = val;
-
-  var pct    = ((val - 1) / 4) * 100;
-  var color  = val <= 2 ? '#6BAA75' : (val <= 3 ? '#F4A261' : '#E05C4B');
-  var slider = document.getElementById('s-' + id);
-  slider.style.background = 'linear-gradient(to right, ' + color + ' ' + pct + '%, #ECD9CC ' + pct + '%)';
-
+  var pct   = ((val - 1) / 4) * 100;
+  var color = val >= 4 ? '#6BAA75' : (val >= 3 ? '#F4A261' : '#E05C4B');
+  document.getElementById('s-' + id).style.background = 'linear-gradient(to right, '+color+' '+pct+'%, #ECD9CC '+pct+'%)';
   updatePreview();
 }
 
 function updatePreview() {
   var vals = SLIDER_IDS.map(function(id){ return parseInt(document.getElementById('s-'+id).value); });
   var avg  = vals.reduce(function(a,b){ return a+b; },0) / 4;
-
-  var el  = document.getElementById('isam-preview-val');
-  var lbl = document.getElementById('isam-preview-label');
-  el.textContent = avg.toFixed(2);
-
-  if (avg < 2.5) {
-    el.style.color  = '#2d7a39';
-    lbl.textContent = 'Riesgo bajo — proyecto saludable';
-  } else if (avg < 3.5) {
-    el.style.color  = '#b8620a';
-    lbl.textContent = 'Riesgo moderado — monitorear de cerca';
-  } else {
-    el.style.color  = '#aa2e1e';
-    lbl.textContent = 'Riesgo alto — requiere intervención';
-  }
+  var el   = document.getElementById('isam-preview-val');
+  var lbl  = document.getElementById('isam-preview-label');
+  el.textContent = avg.toFixed(1);
+  if (avg >= 3.5) { el.style.color='#2d7a39'; lbl.textContent='Proyecto saludable — riesgo bajo'; }
+  else if (avg >= 2.5) { el.style.color='#b8620a'; lbl.textContent='Riesgo moderado — monitorear de cerca'; }
+  else { el.style.color='#aa2e1e'; lbl.textContent='Riesgo alto — requiere intervención'; }
 }
 
 function resetSliders() {
-  SLIDER_IDS.forEach(function(id){
-    var slider = document.getElementById('s-'+id);
-    slider.value = 1;
-    onSlider(id, 1);
-  });
+  SLIDER_IDS.forEach(function(id){ document.getElementById('s-'+id).value=5; onSlider(id,5); });
   updatePreview();
 }
 
-// ─── FECHA PROYECTADA DE CIERRE ───────────────────────────────────────────────
+// ─── FECHA PROYECTADA ─────────────────────────────────────────────────────────
 function editFechaProyectada(sid) {
-  document.getElementById('fpdisp-' + sid).style.display = 'none';
-  var editEl = document.getElementById('fpedit-' + sid);
-  editEl.style.display = 'flex';
-  document.getElementById('fpinput-' + sid).focus();
+  document.getElementById('fpdisp-'+sid).style.display='none';
+  document.getElementById('fpedit-'+sid).style.display='flex';
+  document.getElementById('fpinput-'+sid).focus();
 }
-
 function cancelFechaProyectada(sid) {
-  document.getElementById('fpedit-' + sid).style.display  = 'none';
-  document.getElementById('fpdisp-' + sid).style.display  = 'flex';
+  document.getElementById('fpedit-'+sid).style.display='none';
+  document.getElementById('fpdisp-'+sid).style.display='flex';
 }
-
 function saveFechaProyectada(nombre, sid) {
-  var val = document.getElementById('fpinput-' + sid).value;
-
-  // Update local state
-  var p = proyectos.find(function(x) { return x.nombre === nombre; });
+  var val = document.getElementById('fpinput-'+sid).value;
+  var p   = proyectos.find(function(x){ return x.nombre===nombre; });
   if (p) p.fechaProyectada = val;
-
-  // Update display
-  var valEl = document.getElementById('fpval-' + sid);
+  var valEl = document.getElementById('fpval-'+sid);
   valEl.textContent = val ? fechaCorta(val) : 'Sin definir';
   val ? valEl.classList.remove('empty') : valEl.classList.add('empty');
-
   cancelFechaProyectada(sid);
-
-  // Persist
-  if (IS_GAS) {
-    google.script.run
-      .withSuccessHandler(function() { toast('Fecha proyectada guardada', 'success'); })
-      .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); })
-      .saveFechaProyectada(nombre, val);
-
-  } else if (IS_FIREBASE) {
-    var docId = nombre.replace(/[^a-zA-Z0-9]/g, '_');
-    db.collection('proyectos').doc(docId).update({ fechaProyectada: val })
-      .then(function() { toast('Fecha proyectada guardada ✓', 'success'); })
-      .catch(function(err) { toast('Error Firebase: ' + err.message, 'error'); });
-
-  } else {
-    toast('Fecha proyectada actualizada', 'success');
-  }
+  if (IS_FIREBASE) {
+    db.collection('proyectos').doc(nombre.replace(/[^a-zA-Z0-9]/g,'_')).update({ fechaProyectada: val })
+      .then(function(){ toast('Fecha guardada ✓','success'); })
+      .catch(function(err){ toast('Error: '+err.message,'error'); });
+  } else if (IS_GAS) {
+    google.script.run.withSuccessHandler(function(){ toast('Fecha guardada','success'); }).withFailureHandler(function(err){ toast('Error: '+err.message,'error'); }).saveFechaProyectada(nombre, val);
+  } else { toast('Fecha actualizada','success'); }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function medsFor(nombre) {
-  return mediciones
-    .filter(function(m){ return m.proyecto === nombre; })
-    .sort(function(a,b){ return new Date(a.fecha) - new Date(b.fecha); });
+  return mediciones.filter(function(m){ return m.proyecto===nombre; }).sort(function(a,b){ return a.fecha < b.fecha ? -1 : 1; });
 }
-
 function ultimoISAM(nombre) {
-  var meds = medsFor(nombre);
-  return meds.length ? meds[meds.length-1].promedio : null;
+  var m = medsFor(nombre); return m.length ? m[m.length-1].promedio : null;
 }
 
-function scoreColor(v) { return v < 2.5 ? '#6BAA75' : (v < 3.5 ? '#F4A261' : '#E05C4B'); }
-
-function sp(v) {
-  var c = v <= 2 ? 'g' : (v <= 3 ? 'y' : 'r');
-  return '<span class="sp '+c+'">'+v+'</span>';
-}
-
-function isamSp(v) {
-  var c = v < 2.5 ? 'g' : (v < 3.5 ? 'y' : 'r');
-  return '<span class="sp '+c+'">'+v.toFixed(2)+'</span>';
-}
+// Escala invertida: >= 3.5 verde, >= 2.5 amarillo, < 2.5 rojo
+function scoreColor(v) { return v >= 3.5 ? '#6BAA75' : (v >= 2.5 ? '#F4A261' : '#E05C4B'); }
+function sp(v) { var c = v >= 4 ? 'g' : (v >= 3 ? 'y' : 'r'); return '<span class="sp '+c+'">'+v+'</span>'; }
+function isamSp(v) { var c = v >= 3.5 ? 'g' : (v >= 2.5 ? 'y' : 'r'); return '<span class="sp '+c+'">'+v.toFixed(1)+'</span>'; }
 
 function fechaCorta(f, veryShort) {
   if (!f) return '—';
-  var d = new Date(f + 'T00:00:00');
+  if (f.includes('-W')) return semanaCorta(f, veryShort);
+  var d = new Date(f+'T00:00:00');
   if (veryShort) return d.toLocaleDateString('es-CO', { day:'2-digit', month:'short' });
   return d.toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
 }
 
-function cap(s)    { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
-function esc(s)    { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function v(id)     { return document.getElementById(id).value.trim(); }
+function cap(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1) : ''; }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function v(id)  { return document.getElementById(id).value.trim(); }
 function safeId(s) { return s.replace(/[^a-zA-Z0-9]/g,'_'); }
 
-function showLoading(on) {
-  document.getElementById('loadingMsg').style.display = on ? 'flex' : 'none';
-}
-
-function setLoadingText(txt) {
-  document.getElementById('loadingText').textContent = txt;
-}
+function showLoading(on) { document.getElementById('loadingMsg').style.display = on ? 'flex' : 'none'; }
+function setLoadingText(t) { document.getElementById('loadingText').textContent = t; }
 
 var _toastTimer;
 function toast(msg, type) {
   var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className   = 'show ' + (type||'');
+  t.textContent = msg; t.className = 'show '+(type||'');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(function(){ t.className=''; }, 3800);
 }
 
-// ─── DEMO PROJECTS (seed inicial en Firestore si está vacío) ──────────────────
+// ─── DEMO PROJECTS ────────────────────────────────────────────────────────────
 var DEMO_PROJECTS = [
-  { nombre:'TELMEX-01',      host:'Ma Camila Venegas',      owner:'Ana Roa',              doer1:'Kevin Barbosa',       doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:94,  fechaInicio:'2026-03-26', fechaCierre:'2026-04-22', semanasPresupuestadas:3,  semanasProyectadas:4, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'MAPFRE-02',      host:'Ma Camila Venegas',      owner:'Ma Alejandra Mariño',  doer1:'Julián Gaitán',       doer2:'Kevin Barbosa',    otros1:'Santiago Castillo', otros2:'', horasPresupuestadas:553, fechaInicio:'2025-09-17', fechaCierre:'2026-01-23', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'GTC-02',         host:'Ma Camila Venegas',      owner:'Azul Cardona',         doer1:'Ma Fernanda Martinez',doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:160, fechaInicio:'2026-03-23', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'SPRC-05',        host:'Ma Camila Venegas',      owner:'Stiben Ibarra',        doer1:'Julián Gaitán',       doer2:'Ma Camila Rueda',  otros1:'',              otros2:'', horasPresupuestadas:253, fechaInicio:'2026-01-21', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'COOPEUCH-01',    host:'Ma Alejandra Corrales',  owner:'Laura Gomez',          doer1:'Ma Laura Patiño',     doer2:'Jojhann Rodriguez',otros1:'Ma Camila Rueda',otros2:'', horasPresupuestadas:215, fechaInicio:'2025-09-15', fechaCierre:'2025-11-10', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'COOPEUCH-02',    host:'Ma Alejandra Corrales',  owner:'Laura Gomez',          doer1:'Daniela Caicedo',     doer2:'Jojhann Rodriguez',otros1:'',              otros2:'', horasPresupuestadas:420, fechaInicio:'2026-01-26', fechaCierre:'2026-04-17', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'SEGBOL-08',      host:'Ma Alejandra Corrales',  owner:'Azul Cardona',         doer1:'Laura Gómez',         doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:116, fechaInicio:'2025-12-15', fechaCierre:'2026-12-18', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'BFALACHILE-01',  host:'Camilo Niño',            owner:'Daniela Caicedo',      doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:323, fechaInicio:'2026-01-19', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'ALBEMARLE-01',   host:'Camilo Niño',            owner:'Ana Roa',              doer1:'Kevin Barbosa',       doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:151, fechaInicio:'2026-01-19', fechaCierre:'2026-03-09', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'LAVICLAB-07',    host:'Camilo Niño',            owner:'Ma Alejandra Mariño',  doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:6,   fechaInicio:'2026-03-30', fechaCierre:'',           semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'LEGRAND-01',     host:'Daniel Pinilla',         owner:'Stiben Ibarra',        doer1:'',                    doer2:'',                 otros1:'',              otros2:'', horasPresupuestadas:138, fechaInicio:'2026-03-02', fechaCierre:'2026-05-22', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
-  { nombre:'SQM-07',         host:'Daniel Pinilla',         owner:'Azul Cardona',         doer1:'Kevin Barbosa',       doer2:'Jojhann Rodriguez',otros1:'',              otros2:'', horasPresupuestadas:153, fechaInicio:'2026-01-26', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' }
+  { nombre:'TELMEX-01',     host:'Ma Camila Venegas',     owner:'Ana Roa',             doer1:'Kevin Barbosa',        doer2:'Ma Camila Rueda',   otros1:'',               otros2:'', horasPresupuestadas:94,  fechaInicio:'2026-03-26', fechaCierre:'2026-04-22', semanasPresupuestadas:3,  semanasProyectadas:4, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'MAPFRE-02',     host:'Ma Camila Venegas',     owner:'Ma Alejandra Mariño', doer1:'Julián Gaitán',        doer2:'Kevin Barbosa',     otros1:'Santiago Castillo',otros2:'', horasPresupuestadas:553, fechaInicio:'2025-09-17', fechaCierre:'2026-01-23', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'GTC-02',        host:'Ma Camila Venegas',     owner:'Azul Cardona',        doer1:'Ma Fernanda Martinez', doer2:'Ma Camila Rueda',   otros1:'',               otros2:'', horasPresupuestadas:160, fechaInicio:'2026-03-23', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SPRC-05',       host:'Ma Camila Venegas',     owner:'Stiben Ibarra',       doer1:'Julián Gaitán',        doer2:'Ma Camila Rueda',   otros1:'',               otros2:'', horasPresupuestadas:253, fechaInicio:'2026-01-21', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'COOPEUCH-01',   host:'Ma Alejandra Corrales', owner:'Laura Gomez',         doer1:'Ma Laura Patiño',      doer2:'Jojhann Rodriguez', otros1:'Ma Camila Rueda',otros2:'', horasPresupuestadas:215, fechaInicio:'2025-09-15', fechaCierre:'2025-11-10', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'COOPEUCH-02',   host:'Ma Alejandra Corrales', owner:'Laura Gomez',         doer1:'Daniela Caicedo',      doer2:'Jojhann Rodriguez', otros1:'',               otros2:'', horasPresupuestadas:420, fechaInicio:'2026-01-26', fechaCierre:'2026-04-17', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SEGBOL-08',     host:'Ma Alejandra Corrales', owner:'Azul Cardona',        doer1:'Laura Gómez',          doer2:'',                  otros1:'',               otros2:'', horasPresupuestadas:116, fechaInicio:'2025-12-15', fechaCierre:'2026-12-18', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'BFALACHILE-01', host:'Camilo Niño',           owner:'Daniela Caicedo',     doer1:'',                     doer2:'',                  otros1:'',               otros2:'', horasPresupuestadas:323, fechaInicio:'2026-01-19', fechaCierre:'2026-03-30', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'ALBEMARLE-01',  host:'Camilo Niño',           owner:'Ana Roa',             doer1:'Kevin Barbosa',        doer2:'',                  otros1:'',               otros2:'', horasPresupuestadas:151, fechaInicio:'2026-01-19', fechaCierre:'2026-03-09', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'LAVICLAB-07',   host:'Camilo Niño',           owner:'Ma Alejandra Mariño', doer1:'',                     doer2:'',                  otros1:'',               otros2:'', horasPresupuestadas:6,   fechaInicio:'2026-03-30', fechaCierre:'',           semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'LEGRAND-01',    host:'Daniel Pinilla',        owner:'Stiben Ibarra',       doer1:'',                     doer2:'',                  otros1:'',               otros2:'', horasPresupuestadas:138, fechaInicio:'2026-03-02', fechaCierre:'2026-05-22', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' },
+  { nombre:'SQM-07',        host:'Daniel Pinilla',        owner:'Azul Cardona',        doer1:'Kevin Barbosa',        doer2:'Jojhann Rodriguez', otros1:'',               otros2:'', horasPresupuestadas:153, fechaInicio:'2026-01-26', fechaCierre:'2026-03-13', semanasPresupuestadas:0,  semanasProyectadas:0, fechaProyectada:'', conocimientoCliente:'novato', innovacionEquipo:'bajo', estado:'activo' }
 ];
 </script>
 </body>
