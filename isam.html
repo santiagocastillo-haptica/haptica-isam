@@ -508,6 +508,7 @@
       <select id="f-host-dash" onchange="renderDashboard()">
         <option value="">Todos los Hosts</option>
       </select>
+      <button id="horasStatus" class="btn btn-secondary" onclick="fetchHorasEjecutadas()" style="font-size:12px; padding:8px 14px; white-space:nowrap;" title="Actualizar horas desde staffing">↺ Horas</button>
     </div>
 
     <!-- Summary -->
@@ -559,6 +560,11 @@ var dashView       = 'activos'; // 'activos' | 'cerrados'
 
 var IS_GAS      = (typeof google !== 'undefined') && google.script;
 var IS_FIREBASE = !IS_GAS;
+
+// ─── STAFFING SHEET CONFIG ────────────────────────────────────────────────────
+var STAFFING_ID    = '1fPL_GZfRAH_Jz8hHfvZtPEpxf1dAlJ-8W8JOBgsTw18';
+var STAFFING_HOJA  = 'Estado Actual Operación';
+var STAFFING_FILA  = 11; // primera fila de datos en el sheet (1-indexed)
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -641,6 +647,78 @@ function afterLoad() {
   poblarSelectProyectos();
   poblarFiltroHost();
   renderDashboard();
+  if (!IS_GAS) fetchHorasEjecutadas();
+}
+
+// ─── HORAS EJECUTADAS desde Staffing Sheet ────────────────────────────────────
+function fetchHorasEjecutadas() {
+  var url = 'https://docs.google.com/spreadsheets/d/' + STAFFING_ID +
+            '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(STAFFING_HOJA);
+
+  setSyncHoras(false);
+  fetch(url)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' — ¿El sheet es público?');
+      return r.text();
+    })
+    .then(function(csv) {
+      // Mapa de nombres de proyecto (minúsculas → nombre real)
+      var mapaProyectos = {};
+      proyectos.forEach(function(p) {
+        mapaProyectos[p.nombre.toLowerCase().trim()] = p.nombre;
+      });
+
+      var lines   = csv.split('\n');
+      var result  = {};
+      var startIdx = STAFFING_FILA - 1; // 0-indexed
+
+      for (var i = startIdx; i < lines.length; i++) {
+        var row    = parseCsvLine(lines[i]);
+        var nombre = (row[0] || '').trim();
+        if (!nombre) continue;
+
+        var key = nombre.toLowerCase();
+        if (!mapaProyectos[key]) continue; // no es un proyecto conocido
+
+        var realName = mapaProyectos[key];
+        var total = 0;
+        for (var c = 1; c < row.length; c++) {
+          var val = parseFloat(row[c]);
+          if (!isNaN(val) && val > 0) total += val;
+        }
+        if (total > 0) result[realName] = (result[realName] || 0) + total;
+      }
+
+      horasEjec = result;
+      setSyncHoras(true);
+      renderDashboard();
+      onProyectoChange(); // actualiza chips de horas en quincenal
+    })
+    .catch(function(err) {
+      console.warn('Horas staffing:', err.message);
+      setSyncHoras(false, true);
+    });
+}
+
+function parseCsvLine(line) {
+  if (!line) return [];
+  var result = [], cur = '', inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function setSyncHoras(ok, error) {
+  var el = document.getElementById('horasStatus');
+  if (!el) return;
+  if (ok)    { el.textContent = '↺ Horas'; el.title = 'Horas actualizadas desde staffing'; el.style.color = ''; }
+  else if (error) { el.textContent = '↺ Horas ⚠'; el.title = 'No se pudo leer el sheet. Verifica que sea público.'; el.style.color = 'var(--red)'; }
+  else       { el.textContent = '↺ Horas…'; el.title = 'Cargando…'; el.style.color = 'var(--muted)'; }
 }
 
 // ─── VIEWS ────────────────────────────────────────────────────────────────────
