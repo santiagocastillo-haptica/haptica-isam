@@ -219,7 +219,8 @@
     .info-block-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted); margin-bottom: 10px; }
     .info-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 12px; }
     .info-row-l { color: var(--text-sec); }
-    .info-row-v { font-weight: 600; color: var(--primary); }
+    .info-row-v { font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px; }
+    .persona-h-badge { font-size: 10px; font-weight: 600; background: var(--primary); color: #fff; border-radius: 99px; padding: 1px 7px; letter-spacing: 0.02em; opacity: 0.75; }
     .bar-track { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 8px 0 5px; }
     .bar-fill  { height: 100%; border-radius: 99px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
     .bar-fill.under { background: var(--green); }
@@ -411,20 +412,10 @@
               <option value="">Seleccionar proyecto...</option>
             </select>
           </div>
-          <!-- Semana del mes -->
+          <!-- Semana del año -->
           <div class="form-group" style="flex:0 0 auto;">
             <label>Semana</label>
-            <select id="q-semana" style="min-width:110px;">
-              <option value="1">Semana 1</option>
-              <option value="2">Semana 2</option>
-              <option value="3">Semana 3</option>
-              <option value="4">Semana 4</option>
-              <option value="5">Semana 5</option>
-            </select>
-          </div>
-          <div class="form-group" style="flex:0 0 auto;">
-            <label>Mes</label>
-            <select id="q-mes" style="min-width:150px;"></select>
+            <select id="q-semana" style="min-width:190px;"></select>
           </div>
         </div>
 
@@ -526,7 +517,7 @@
       <div class="sum-card">
         <div class="sum-label">En Alerta</div>
         <div class="sum-value v-red" id="d-alertas">—</div>
-        <div class="sum-sub">ISAM &lt; 2.5</div>
+        <div class="sum-sub">ISAM &lt; 3.0</div>
       </div>
     </div>
 
@@ -555,6 +546,7 @@ var db = firebase.firestore();
 var proyectos      = [];
 var mediciones     = [];
 var horasEjec      = {};
+var horasPersonas  = {}; // {PROYECTO: {PERSONA_ABREV: horas}}
 var chartInstances = {};
 var dashView       = 'activos'; // 'activos' | 'cerrados'
 
@@ -566,8 +558,7 @@ var HORAS_API_URL = 'https://script.google.com/macros/s/AKfycbyXt0qkNaPgvaICJlYF
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-  poblarMeses();
-  document.getElementById('q-semana').value = currentWeekOfMonth();
+  poblarSemanas();
   initSliders();
   if (IS_GAS) { cargarTodo(); } else { cargarFirebase(); }
 });
@@ -634,7 +625,8 @@ function cargarTodo() {
     .withSuccessHandler(function(data) {
       proyectos  = data.proyectos       || [];
       mediciones = data.mediciones      || [];
-      horasEjec  = data.horasEjecutadas || {};
+      horasEjec     = data.horasEjecutadas || {};
+      horasPersonas = {};
       afterLoad(); showLoading(false);
     })
     .withFailureHandler(function(err) { toast('Error: ' + err.message, 'error'); showLoading(false); })
@@ -658,7 +650,8 @@ function fetchHorasEjecutadas() {
     })
     .then(function(data) {
       if (data.error) throw new Error(data.error);
-      horasEjec = data;
+      horasEjec    = data.totals    || data;
+      horasPersonas = data.personas || {};
       setSyncHoras(true);
       renderDashboard();
       onProyectoChange();
@@ -729,9 +722,9 @@ function renderDashboard() {
     var avg    = scores.length ? (scores.reduce(function(a,b){ return a+b; }, 0) / scores.length) : null;
     var avgEl  = document.getElementById('d-isam-avg');
     avgEl.textContent = avg !== null ? avg.toFixed(1) : '—';
-    avgEl.className   = 'sum-value ' + (avg === null ? '' : avg >= 3.5 ? 'v-green' : avg >= 2.5 ? 'v-yellow' : 'v-red');
+    avgEl.className   = 'sum-value ' + (avg === null ? '' : avg >= 3.7 ? 'v-green' : avg >= 3.0 ? 'v-yellow' : 'v-red');
 
-    var alertas = scores.filter(function(s){ return s < 2.5; }).length;
+    var alertas = scores.filter(function(s){ return s < 3.0; }).length;
     document.getElementById('d-alertas').textContent = alertas;
   }
 
@@ -764,6 +757,27 @@ function poblarFiltroHost() {
   if (cur) sel.value = cur;
 }
 
+// ─── MATCHING NOMBRES (completo vs abreviado) ─────────────────────────────────
+// Ej: "Ana Roa" vs "A. Roa"  →  true
+function matchNombre(completo, abrev) {
+  if (!completo || !abrev) return false;
+  var c = completo.toLowerCase().replace(/\./g,'').trim().split(/\s+/);
+  var a = abrev.toLowerCase().replace(/\./g,'').trim().split(/\s+/);
+  // Apellido (última palabra) debe coincidir
+  if (c[c.length-1] !== a[a.length-1]) return false;
+  // Inicial del primer nombre debe coincidir
+  return (a[0].length === 1) ? c[0][0] === a[0][0] : c[0] === a[0];
+}
+
+function horasDePersona(proyecto, nombreCompleto) {
+  var porPersona = horasPersonas[proyecto];
+  if (!porPersona) return null;
+  for (var abrev in porPersona) {
+    if (matchNombre(nombreCompleto, abrev)) return porPersona[abrev];
+  }
+  return null;
+}
+
 // ─── BUILD CARD ───────────────────────────────────────────────────────────────
 function buildCard(p) {
   var meds  = medsFor(p.nombre);
@@ -774,11 +788,11 @@ function buildCard(p) {
   var pct   = pres > 0 ? Math.min((ejec / pres) * 100, 100) : 0;
 
   // ISAM invertido: mayor = mejor → verde
-  var ibClass  = last === null ? 'ib-empty' : (last >= 3.5 ? 'ib-green' : (last >= 2.5 ? 'ib-yellow' : 'ib-red'));
+  var ibClass  = last === null ? 'ib-empty' : (last >= 3.7 ? 'ib-green' : (last >= 3.0 ? 'ib-yellow' : 'ib-red'));
   var badgeTxt = last !== null ? last.toFixed(1) : '—';
 
   var alertBadge = '';
-  if      (last !== null && last < 2.5) alertBadge = '<span class="p-badge red">ALERTA</span>';
+  if      (last !== null && last < 3.0) alertBadge = '<span class="p-badge red">ALERTA</span>';
   else if (last !== null && last < 3.5) alertBadge = '<span class="p-badge yellow">Monitorear</span>';
 
   var teamBadges = [
@@ -798,16 +812,19 @@ function buildCard(p) {
   var barClass = ejec <= pres ? 'under' : 'over';
 
   var equipo = [
-    ['Host',   p.host,   p.hostHoras],
-    ['Owner',  p.owner,  p.ownerHoras],
-    ['Doer 1', p.doer1,  p.doer1Horas],
-    ['Doer 2', p.doer2,  p.doer2Horas],
-    ['Otros',  p.otros1, p.otros1Horas],
-    ['Otros',  p.otros2, p.otros2Horas]
+    ['Host',   p.host],
+    ['Owner',  p.owner],
+    ['Doer 1', p.doer1],
+    ['Doer 2', p.doer2],
+    ['Otros',  p.otros1],
+    ['Otros',  p.otros2]
   ].filter(function(x){ return x[1]; })
    .map(function(x){
-     var hLabel = x[2] ? '<span style="font-size:11px;color:var(--muted);margin-left:6px;">'+x[2]+'h</span>' : '';
-     return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hLabel+'</span></div>';
+     var hEjec = horasDePersona(p.nombre, x[1]);
+     var hTag  = hEjec !== null
+       ? '<span class="persona-h-badge">'+Math.round(hEjec)+'h</span>'
+       : '';
+     return '<div class="info-row"><span class="info-row-l">'+x[0]+'</span><span class="info-row-v">'+esc(x[1])+hTag+'</span></div>';
    }).join('');
 
   var isCerrado  = p.estado === 'cerrado';
@@ -1016,9 +1033,7 @@ function guardarMedicion() {
   var proyecto = document.getElementById('q-proyecto').value;
   if (!proyecto) { toast('Selecciona un proyecto','error'); return; }
 
-  var semana = document.getElementById('q-semana').value;
-  var mes    = document.getElementById('q-mes').value;
-  var fecha  = mes + '-W' + semana;
+  var fecha = document.getElementById('q-semana').value; // ya viene como "YYYY-WNN"
 
   var fri=parseInt(document.getElementById('s-friccion').value);
   var dep=parseInt(document.getElementById('s-dependencia').value);
@@ -1049,36 +1064,71 @@ function afterSaveMedicion(prom) {
 var MESES_LARGO  = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 var MESES_CORTO  = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-function currentWeekOfMonth() {
-  return Math.min(Math.ceil(new Date().getDate() / 7), 5);
+// Semana ISO del año (1-53)
+function currentWeekOfYear() {
+  var d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 4 - (d.getDay()||7));
+  var yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
-function poblarMeses() {
-  var sel   = document.getElementById('q-mes');
-  var today = new Date();
+function weeksInYear(yr) {
+  var d = new Date(yr, 11, 31);
+  var w = new Date(yr, 0, 1);
+  return Math.ceil(((d - w) / 86400000 + 1) / 7);
+}
+
+// Primer lunes de la semana ISO dada
+function weekToDate(yr, wk) {
+  var simple = new Date(yr, 0, 1 + (wk - 1) * 7);
+  var dow = simple.getDay();
+  simple.setDate(simple.getDate() - (dow <= 4 ? dow - 1 : dow - 8));
+  return simple;
+}
+
+// Pobla el select de semana del año (últimas 30 + 2 futuras, más reciente arriba)
+function poblarSemanas() {
+  var sel     = document.getElementById('q-semana');
+  var curWk   = currentWeekOfYear();
+  var curYr   = new Date().getFullYear();
   sel.innerHTML = '';
-  for (var i = -5; i <= 1; i++) {
-    var d   = new Date(today.getFullYear(), today.getMonth() + i, 1);
-    var val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    var lbl = MESES_LARGO[d.getMonth()] + ' ' + d.getFullYear();
+  for (var offset = 2; offset >= -29; offset--) {
+    var wk = curWk + offset, yr = curYr;
+    if (wk < 1)  { yr--; wk += weeksInYear(yr); }
+    if (wk > weeksInYear(yr)) { yr++; wk -= weeksInYear(curYr); }
+    var val = yr + '-W' + String(wk).padStart(2,'0');
+    var d   = weekToDate(yr, wk);
+    var lbl = 'Sem ' + wk + ' · ' + MESES_LARGO[d.getMonth()] + ' ' + yr;
     var opt = document.createElement('option');
     opt.value = val; opt.textContent = lbl;
-    if (i === 0) opt.selected = true;
+    if (offset === 0) opt.selected = true;
     sel.appendChild(opt);
   }
 }
 
-// Muestra "Sem 2 · may" o "Sem 2 · mayo 2026"
+// Muestra "Sem 19 · may" o "Sem 19 · mayo 2026"
+// Soporta formato nuevo "YYYY-WNN" y formato viejo "YYYY-MM-WN"
 function semanaCorta(f, veryShort) {
   if (!f) return '—';
-  if (f.includes('-W')) {
-    var parts = f.split('-'); // ["2026","05","W2"]
-    var mon = parseInt(parts[1]) - 1;
-    var wk  = parts[2]; // "W2"
-    var yr  = parts[0];
-    return veryShort ? wk + ' · ' + MESES_CORTO[mon] : wk.replace('W','Sem ') + ' · ' + MESES_LARGO[mon] + ' ' + yr;
+  if (!f.includes('-W')) return fechaCorta(f, veryShort);
+  var parts = f.split('-'); // ["2026","W19"] o ["2026","05","W2"]
+  var yr, wk, d;
+  if (parts.length === 2) {
+    // Formato nuevo: YYYY-WNN
+    yr = parseInt(parts[0]);
+    wk = parseInt(parts[1].replace('W',''));
+    d  = weekToDate(yr, wk);
+  } else {
+    // Formato viejo: YYYY-MM-WN (retrocompatibilidad)
+    yr = parseInt(parts[0]);
+    wk = parseInt(parts[2].replace('W',''));
+    d  = new Date(yr, parseInt(parts[1])-1, 1);
   }
-  return fechaCorta(f, veryShort);
+  var mon = d.getMonth();
+  return veryShort
+    ? 'W' + wk + ' · ' + MESES_CORTO[mon]
+    : 'Sem ' + wk + ' · ' + MESES_LARGO[mon] + ' ' + yr;
 }
 
 // ─── SLIDERS (escala invertida: 5=verde, 1=rojo) ─────────────────────────────
@@ -1104,8 +1154,8 @@ function updatePreview() {
   var el   = document.getElementById('isam-preview-val');
   var lbl  = document.getElementById('isam-preview-label');
   el.textContent = avg.toFixed(1);
-  if (avg >= 3.5) { el.style.color='#2d7a39'; lbl.textContent='Proyecto saludable — riesgo bajo'; }
-  else if (avg >= 2.5) { el.style.color='#b8620a'; lbl.textContent='Riesgo moderado — monitorear de cerca'; }
+  if (avg >= 3.7) { el.style.color='#2d7a39'; lbl.textContent='Proyecto saludable — riesgo bajo'; }
+  else if (avg >= 3.0) { el.style.color='#b8620a'; lbl.textContent='Riesgo moderado — monitorear de cerca'; }
   else { el.style.color='#aa2e1e'; lbl.textContent='Riesgo alto — requiere intervención'; }
 }
 
@@ -1149,10 +1199,10 @@ function ultimoISAM(nombre) {
   var m = medsFor(nombre); return m.length ? m[m.length-1].promedio : null;
 }
 
-// Escala invertida: >= 3.5 verde, >= 2.5 amarillo, < 2.5 rojo
-function scoreColor(v) { return v >= 3.5 ? '#6BAA75' : (v >= 2.5 ? '#F4A261' : '#E05C4B'); }
+// Escala invertida: >= 3.7 verde, >= 3.0 amarillo, < 3.0 rojo
+function scoreColor(v) { return v >= 3.7 ? '#6BAA75' : (v >= 3.0 ? '#F4A261' : '#E05C4B'); }
 function sp(v) { var c = v >= 4 ? 'g' : (v >= 3 ? 'y' : 'r'); return '<span class="sp '+c+'">'+v+'</span>'; }
-function isamSp(v) { var c = v >= 3.5 ? 'g' : (v >= 2.5 ? 'y' : 'r'); return '<span class="sp '+c+'">'+v.toFixed(1)+'</span>'; }
+function isamSp(v) { var c = v >= 3.7 ? 'g' : (v >= 3.0 ? 'y' : 'r'); return '<span class="sp '+c+'">'+v.toFixed(1)+'</span>'; }
 
 function fechaCorta(f, veryShort) {
   if (!f) return '—';
