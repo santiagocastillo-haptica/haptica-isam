@@ -192,6 +192,13 @@
     .btn-toggle-estado:hover { border-color: var(--red); color: var(--red); }
     .btn-toggle-estado.reactivar { border-color: var(--green); color: #2d7a39; }
     .btn-toggle-estado.reactivar:hover { background: rgba(107,170,117,0.1); }
+    .btn-edit-proj {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 5px 9px; font-size: 12px;
+      cursor: pointer; color: var(--muted);
+      transition: all 0.15s; flex-shrink: 0; margin-left: 4px;
+    }
+    .btn-edit-proj:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-α); }
 
     .proj-chevron { color: var(--muted); font-size: 14px; transition: transform 0.22s; flex-shrink: 0; margin-left: 4px; }
     .proj-card.open .proj-chevron { transform: rotate(180deg); }
@@ -549,6 +556,7 @@ var horasEjec      = {};
 var horasPersonas  = {}; // {PROYECTO: {PERSONA_ABREV: horas}}
 var chartInstances = {};
 var dashView       = 'activos'; // 'activos' | 'cerrados'
+var _editMode      = null;      // nombre del proyecto en edición, o null
 
 var IS_GAS      = (typeof google !== 'undefined') && google.script;
 var IS_FIREBASE = !IS_GAS;
@@ -845,6 +853,7 @@ function buildCard(p) {
         +'<div class="proj-hours-main">'+Math.round(ejec)+'h / '+Math.round(pres)+'h</div>'
         +'<div class="proj-hours-delta '+(delta>=0?'delta-pos':'delta-neg')+'">'+(delta>=0?'+':'')+Math.round(delta)+'h delta</div>'
       +'</div>'
+      +'<button class="btn-edit-proj" onclick="editProyecto(event,\''+esc(p.nombre)+'\')" title="Editar proyecto">✏</button>'
       +toggleBtn
       +'<div class="proj-chevron">▾</div>'
     +'</div>'
@@ -953,42 +962,108 @@ function toggleCard(card) {
 }
 
 // ─── FORM: NUEVO PROYECTO ─────────────────────────────────────────────────────
+// ─── EDITAR PROYECTO ──────────────────────────────────────────────────────────
+function editProyecto(e, nombre) {
+  e.stopPropagation();
+  var p = proyectos.find(function(x){ return x.nombre === nombre; });
+  if (!p) return;
+
+  // Ir a Registro → Nuevo Proyecto
+  document.querySelectorAll('.view').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById('view-registro').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelector('.nav-btn[onclick*="registro"]').classList.add('active');
+  document.querySelectorAll('.sub-view').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById('subtab-nuevo').classList.add('active');
+  document.querySelectorAll('.sub-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelector('.sub-tab[onclick*="nuevo"]').classList.add('active');
+
+  // Pre-llenar campos
+  var fn = document.getElementById('f-nombre');
+  fn.value    = p.nombre;
+  fn.disabled = true;
+  fn.style.opacity = '0.6';
+
+  document.getElementById('f-host').value   = p.host   || '';
+  document.getElementById('f-owner').value  = p.owner  || '';
+  document.getElementById('f-doer1').value  = p.doer1  || '';
+  document.getElementById('f-doer2').value  = p.doer2  || '';
+  document.getElementById('f-otros1').value = p.otros1 || '';
+  document.getElementById('f-otros2').value = p.otros2 || '';
+  document.getElementById('f-host-h').value   = p.hostHoras   || '';
+  document.getElementById('f-owner-h').value  = p.ownerHoras  || '';
+  document.getElementById('f-doer1-h').value  = p.doer1Horas  || '';
+  document.getElementById('f-doer2-h').value  = p.doer2Horas  || '';
+  document.getElementById('f-otros1-h').value = p.otros1Horas || '';
+  document.getElementById('f-otros2-h').value = p.otros2Horas || '';
+  document.getElementById('f-inicio').value   = p.fechaInicio  || '';
+  document.getElementById('f-cierre').value   = p.fechaCierre  || '';
+  document.getElementById('f-semanas').value  = p.semanasPresupuestadas || '';
+  document.getElementById('f-conocimiento').value = p.conocimientoCliente || '';
+  document.getElementById('f-innovacion').value   = p.innovacionEquipo   || '';
+
+  // Cambiar título y botón
+  document.querySelector('#subtab-nuevo .form-title').textContent = 'Editar Proyecto';
+  document.querySelector('#subtab-nuevo .btn-primary').textContent = 'Actualizar Proyecto';
+
+  _editMode = nombre;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function guardarProyecto() {
   var nombre = document.getElementById('f-nombre').value.trim();
   if (!nombre) { toast('El nombre del proyecto es obligatorio', 'error'); return; }
-  if (proyectos.find(function(p){ return p.nombre.toLowerCase()===nombre.toLowerCase(); })) { toast('Ya existe un proyecto con ese nombre','error'); return; }
+
+  // Solo validar duplicado si es proyecto nuevo
+  if (!_editMode && proyectos.find(function(p){ return p.nombre.toLowerCase()===nombre.toLowerCase(); })) {
+    toast('Ya existe un proyecto con ese nombre','error'); return;
+  }
 
   var hHost=parseFloat(document.getElementById('f-host-h').value)||0, hOwner=parseFloat(document.getElementById('f-owner-h').value)||0,
       hDoer1=parseFloat(document.getElementById('f-doer1-h').value)||0, hDoer2=parseFloat(document.getElementById('f-doer2-h').value)||0,
       hOtros1=parseFloat(document.getElementById('f-otros1-h').value)||0, hOtros2=parseFloat(document.getElementById('f-otros2-h').value)||0;
 
+  var totalHoras = hHost+hOwner+hDoer1+hDoer2+hOtros1+hOtros2;
+
+  // En edición: preservar estado, fechaProyectada, y horas si no se modificaron
+  var orig = _editMode ? proyectos.find(function(p){ return p.nombre === _editMode; }) : null;
+
   var data = {
     nombre: nombre, host: v('f-host'), hostHoras: hHost, owner: v('f-owner'), ownerHoras: hOwner,
     doer1: v('f-doer1'), doer1Horas: hDoer1, doer2: v('f-doer2'), doer2Horas: hDoer2,
     otros1: v('f-otros1'), otros1Horas: hOtros1, otros2: v('f-otros2'), otros2Horas: hOtros2,
-    horasPresupuestadas: hHost+hOwner+hDoer1+hDoer2+hOtros1+hOtros2,
-    fechaInicio: v('f-inicio'), fechaCierre: v('f-cierre'), fechaProyectada: '',
+    horasPresupuestadas: (totalHoras > 0) ? totalHoras : (orig ? orig.horasPresupuestadas || 0 : 0),
+    fechaInicio: v('f-inicio'), fechaCierre: v('f-cierre'),
+    fechaProyectada: orig ? (orig.fechaProyectada || '') : '',
     semanasPresupuestadas: parseInt(v('f-semanas'))||0, semanasProyectadas: 0,
-    conocimientoCliente: v('f-conocimiento'), innovacionEquipo: v('f-innovacion'), estado: 'activo'
+    conocimientoCliente: v('f-conocimiento'), innovacionEquipo: v('f-innovacion'),
+    estado: orig ? orig.estado : 'activo'
   };
 
+  var isEdit = !!_editMode;
   if (IS_GAS) {
     showLoading(true);
-    google.script.run.withSuccessHandler(function(){ proyectos.push(data); afterSaveProyecto(); showLoading(false); }).withFailureHandler(function(err){ toast('Error: '+err.message,'error'); showLoading(false); }).saveProyecto(data);
+    google.script.run.withSuccessHandler(function(){ proyectos.push(data); afterSaveProyecto(isEdit); showLoading(false); }).withFailureHandler(function(err){ toast('Error: '+err.message,'error'); showLoading(false); }).saveProyecto(data);
   } else if (IS_FIREBASE) {
     showLoading(true);
     db.collection('proyectos').doc(nombre.replace(/[^a-zA-Z0-9]/g,'_')).set(data)
-      .then(function(){ limpiarFormProyecto(); toast('Proyecto guardado en Firebase ✓','success'); showLoading(false); })
+      .then(function(){ limpiarFormProyecto(); toast(isEdit ? 'Proyecto actualizado ✓' : 'Proyecto guardado en Firebase ✓','success'); showLoading(false); })
       .catch(function(err){ toast('Error Firebase: '+err.message,'error'); showLoading(false); });
-  } else { proyectos.push(data); afterSaveProyecto(); }
+  } else { proyectos.push(data); afterSaveProyecto(isEdit); }
 }
 
-function afterSaveProyecto() { limpiarFormProyecto(); poblarSelectProyectos(); toast('Proyecto guardado','success'); }
+function afterSaveProyecto(isEdit) { limpiarFormProyecto(); poblarSelectProyectos(); toast(isEdit ? 'Proyecto actualizado' : 'Proyecto guardado','success'); }
 
 function limpiarFormProyecto() {
-  ['f-nombre','f-semanas','f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
+  var fn = document.getElementById('f-nombre');
+  fn.value = ''; fn.disabled = false; fn.style.opacity = '';
+  ['f-semanas','f-inicio','f-cierre'].forEach(function(id){ document.getElementById(id).value=''; });
   ['f-host','f-owner','f-doer1','f-doer2','f-otros1','f-otros2','f-conocimiento','f-innovacion'].forEach(function(id){ document.getElementById(id).value=''; });
   ['f-host-h','f-owner-h','f-doer1-h','f-doer2-h','f-otros1-h','f-otros2-h'].forEach(function(id){ document.getElementById(id).value=''; });
+  // Resetear modo edición
+  _editMode = null;
+  document.querySelector('#subtab-nuevo .form-title').textContent = 'Nuevo Proyecto';
+  document.querySelector('#subtab-nuevo .btn-primary').textContent = 'Guardar Proyecto';
 }
 
 // ─── FORM: QUINCENAL ──────────────────────────────────────────────────────────
